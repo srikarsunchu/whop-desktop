@@ -60,7 +60,7 @@ export function StatTile({
 }
 
 /** 12-to-30 point sparkline in the accent hue; last point marked. */
-export function Sparkline({ values, title, width = 88, height = 24 }: { values: number[]; title?: string; width?: number; height?: number }) {
+export function Sparkline({ values, title, width = 64, height = 22 }: { values: number[]; title?: string; width?: number; height?: number }) {
   const max = Math.max(...values, 1);
   const min = Math.min(...values, 0);
   const span = max - min || 1;

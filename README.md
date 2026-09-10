@@ -1,46 +1,76 @@
 # Whop Desktop
 
-An unofficial, open-source **macOS** desktop app for [whop.com](https://whop.com),
-built with [Tauri 2](https://tauri.app). It loads whop.com in a native window and
-adds the things a real Mac app should have: a hidden title bar, a menu-bar icon,
-a global hotkey, and user CSS tweaks.
+A native macOS command center for running a Whop business, built on the
+[Whop CLI](https://whop.sh). Revenue, balance, members, memberships, products,
+visitors and apps in one window, with a ⌘K palette that runs any `whop`
+command. Every panel shows the exact command that produced it.
 
 <p align="center">
   <img src="https://img.shields.io/badge/platform-macOS%2011%2B-151515" alt="Platform: macOS 11+" />
   <img src="https://img.shields.io/badge/built%20with-Tauri%202-24C8DB?logo=tauri&logoColor=white" alt="Built with Tauri 2" />
+  <img src="https://img.shields.io/badge/UI-Frosted%20UI-fa4616" alt="Frosted UI" />
   <img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT" />
 </p>
 
 > **Unofficial, personal-use project.** Not affiliated with, endorsed by, or
-> distributed by Whop. It simply loads the public website `https://whop.com` in
-> a native macOS window; it does not bundle or modify any Whop code. The icon is
-> Whop's brandmark (a trademark of Whop, see [License & trademarks](#license--trademarks));
-> swap it via `scripts/generate-icons.sh`.
->
-> Fork of [siyabendoezdemir/whop-desktop](https://github.com/siyabendoezdemir/whop-desktop) (MIT).
+> distributed by Whop. It drives the public Whop CLI and, optionally, loads
+> whop.com in a separate window. "Whop" and the Whop logo are trademarks of
+> their owner. Started as a fork of
+> [siyabendoezdemir/whop-desktop](https://github.com/siyabendoezdemir/whop-desktop) (MIT).
 
 ---
 
-## What's different in this fork
+## What it does
 
-- **Hidden title bar.** The traffic lights float over the page and the window
-  reads as a real app, not a browser. The top strip is a native drag region
-  (double-click zooms), handled in AppKit, so the web page never gets any native
-  access.
-- **Menu-bar icon.** A monochrome Whop mark in the menu bar. Left click shows
-  or hides the window, right click gives Show/Hide and Quit.
-- **Global hotkey.** `⌘⇧W` toggles the window from anywhere in macOS.
-- **Tweaks in the View menu.** Compact Density, Hide Promos & Banners, Dark
-  Scrollbars. Checkmarks persist across launches.
-- **Custom CSS.** View > Edit Custom CSS… opens
-  `~/Library/Application Support/com.srikarsunchu.whopdesktop/custom.css` in
-  your editor; View > Reload Custom CSS (`⌘⌥R`) applies it live, no page reload.
-- Everything the original had: persistent login, OAuth/checkout popups that
-  stay in-app, downloads to `~/Downloads` with a notification and Reveal in
-  Finder, camera/mic through the normal macOS prompts, native Back/Forward/
-  Reload/Zoom menu, close-hides-the-window.
+Every screen is a `whop …` command with a face.
 
----
+| View | Commands behind it |
+|---|---|
+| **Overview** | `stats get net_revenue --interval day` (30d + prior 30d delta), `memberships list --status active`, `members list`, `ledgers report --report_type balance_summary`, `ledgers list`, `recommended-actions list` |
+| **Money** | balance summary with a stacked bar (available / pending / reserve / dispute hold), `ledgers report --report_type income_statement`, ledger activity, `payouts list`, `disputes list` |
+| **Members** | `memberships list` with status filters and row actions (pause, resume, cancel, all confirmed first), `members list` |
+| **Products** | `products list` with default plan price, member count, visibility; publish / unpublish / delete, open store page, list plans |
+| **People** | `people list`: location, device, events, purchases, LTV, last seen |
+| **Apps** | `apps list`, open the hosted domain, `apps logs`, deploy preview |
+| **Terminal** | a real shell to the CLI with history (↑), ⌘L clear, and a warning tint on write commands |
+| **Account** | `auth status`, `auth list` (switch profiles), `accounts get`, `team-members list`, CLI binary and version |
+
+Plus:
+
+- **⌘K palette.** Jump to a view, switch business, run one of the common
+  commands, or type any `whop …` line and hit ↵.
+- **Command strip** on every panel: copy it, run it in the Terminal, refresh,
+  and see when it last ran.
+- **Business switcher** fed by `whop auth status` and `whop accounts list`,
+  plus a labeled demo business (Northwind Picks) so every panel can be seen
+  populated.
+- **whop.com window** (⌘⇧O) for the parts of Whop that have no CLI (chat,
+  storefront editing), with persistent login, download handling and the
+  Google passkey workaround.
+- **Menu-bar icon**, **⌘⇧W** global show/hide, close-hides-the-window.
+
+## Design
+
+The UI is Whop's own: [Frosted UI](https://github.com/whopio/frosted-ui)
+components inside `<Theme appearance="dark">`, Inter for text and Geist Mono
+for commands, and only Frosted tokens for color, spacing, radius and motion.
+Side by side with whop.com's dark chrome it reads as the same product: the
+same greys (`#111` ground, `#191919` panels, `#eee` text), the same 12 / 14 px
+Inter, the same radii.
+
+## Requirements
+
+- macOS 11+ (developed on macOS 26, Apple Silicon)
+- **Whop CLI**, installed and signed in:
+
+```bash
+curl -fsSL https://whop.com/install.sh | sh
+whop login
+whop quickstart   # pick the business the CLI should use
+```
+
+The app looks for `whop` in `$WHOP_BIN`, `PATH`, `~/.local/bin`,
+`/opt/homebrew/bin` and `/usr/local/bin`.
 
 ## Install (unsigned build)
 
@@ -57,88 +87,64 @@ it is damaged. Clear the quarantine flag, or right-click > Open:
 xattr -dr com.apple.quarantine "/Applications/Whop Desktop.app"
 ```
 
----
+## Build
 
-## Requirements
-
-- macOS 11+ (developed on macOS 26, Apple Silicon)
-- [Node.js](https://nodejs.org) 18+ and [pnpm](https://pnpm.io) 9+
-- [Rust](https://rustup.rs) (stable) + Cargo
-- Xcode Command Line Tools: `xcode-select --install`
-
-## Develop
+Node 18+, pnpm 9+, Rust stable, Xcode Command Line Tools.
 
 ```bash
 pnpm install
-pnpm tauri dev      # debug build with Web Inspector (View > Open Web Inspector)
+pnpm tauri dev                  # debug build, Web Inspector under View
+pnpm tauri build --bundles app  # -> src-tauri/target/release/bundle/macos/Whop Desktop.app
 ```
 
-## Build
+Launch hints for screenshots and testing:
 
 ```bash
-pnpm tauri build
-# -> src-tauri/target/release/bundle/macos/Whop Desktop.app
-# -> src-tauri/target/release/bundle/dmg/Whop Desktop_0.2.0_aarch64.dmg
+WHOP_DESKTOP_ACCOUNT=biz_demoNorthwind WHOP_DESKTOP_VIEW=overview \
+  "/Applications/Whop Desktop.app/Contents/MacOS/Whop Desktop"
 ```
 
-`scripts/build-signed.sh` still works if you have a Developer ID certificate;
-copy `.env.signing.example` to `.env.signing` and fill it in.
+## How it works, and what it never does
 
-## Icons
+- The main window is a local React app. Its only native capability is a
+  handful of Tauri commands in `src-tauri/src/lib.rs` that run the `whop`
+  binary (never a shell) with `--format json` and return the output.
+- **No API key or token ever touches the app.** Authentication, account
+  selection and pagination stay in the CLI. Switching profiles is
+  `whop auth switch`.
+- Every write (cancel a membership, publish a product, switch profile) shows
+  the exact command and asks first. The CLI has no sandbox or dry-run.
+- The optional whop.com window loads the site as a top-level external URL and
+  is never granted Tauri IPC (`capabilities/main-capability.json` has no
+  `remote` allowlist). The only thing injected there is `src-tauri/js/init.js`,
+  an app-authored script for CSS tweaks and the Google passkey fix.
+- Debug logs record command names only, never arguments or output.
 
-```bash
-./scripts/generate-icons.sh /path/to/icon-1024.png   # app icon set
-python3 scripts/make-tray-icon.py                    # menu-bar template icon
-```
+## Known limitations
 
----
-
-## How it works
-
-- The window is created in Rust (`src-tauri/src/lib.rs`) and points at
-  `https://whop.com` as a top-level external URL in WKWebView, not an iframe.
-  The site owns its cookies, localStorage, popups and downloads like a normal
-  browser, with a fixed persistent data store so logins survive relaunch.
-- The remote page is **never** granted Tauri IPC. `capabilities/main-capability.json`
-  has no `remote` allowlist, so whop.com cannot call any native command or
-  plugin. Downloads, notifications, the tray, the hotkey and the menu are all
-  driven from Rust.
-- The one thing pushed into the page is `src-tauri/js/init.js`, a script
-  written by this app. It adds stylesheets (title-bar padding, the tweaks,
-  your `custom.css`) and a small `window.__whopDesktop` object that Rust calls
-  through `eval`. It exposes nothing native.
-- Window dragging under the hidden title bar is done with an AppKit event
-  monitor (`performWindowDragWithEvent`), because Tauri's own drag region
-  needs IPC that the page deliberately doesn't have.
-- Downloads are saved to `~/Downloads` with a sanitised, de-duplicated
-  filename. Debug logs never contain full URLs, only scheme and host.
+- **Scopes.** An OAuth login lacks some scopes: `notifications *` needs
+  `user:notifications:read`, `webhooks *` needs an API-key login
+  (`whop login --api-key`). The app shows the exact fix instead of failing
+  silently. Recommended actions are not enabled on every business yet.
+- **Ledger and stats shapes** are read defensively; if Whop changes the JSON,
+  the Terminal still shows the raw output.
+- **Google sign-in in the web window.** WKWebView only supports cross-device
+  passkeys, so the injected script removes WebAuthn on `accounts.google.com`
+  to force the password flow. If Google still offers a passkey, click "Try
+  another way".
+- Unsigned builds only.
 
 ## Files
 
 | Path | Purpose |
 |---|---|
-| `src-tauri/src/lib.rs` | All app logic |
-| `src-tauri/js/init.js` | Injected page script (tweaks, custom CSS) |
-| `src-tauri/tauri.conf.json` | App name, bundle id, bundling |
-| `src-tauri/capabilities/main-capability.json` | Minimal capability, no remote access |
-| `scripts/` | Icon generation and signed-build script |
+| `src/` | React app: `App.tsx`, `lib/whop.ts` (CLI bridge + cache), `lib/demo.ts` (demo business), `views/`, `components/` |
+| `src-tauri/src/lib.rs` | Tauri commands, windows, tray, hotkey, menu |
+| `src-tauri/js/init.js` | Script injected into the whop.com window only |
+| `src-tauri/capabilities/main-capability.json` | Local-frontend capability, no remote access |
+| `scripts/` | Icon generation and the signed-build script |
 
-## Known limitations
-
-- **Google sign-in and passkeys.** WKWebView only supports the cross-device
-  (Bluetooth) passkey flow, so Google's "use your passkey" step fails with
-  "Something went wrong". The injected script removes WebAuthn on
-  `accounts.google.com` so Google should fall back to a password prompt. If
-  you still land on the passkey step, click "Try another way" and choose
-  "Enter your password".
-- **Web Push from Whop** depends on WKWebView and Whop's service worker; the
-  app neither guarantees nor fakes it. Download notifications are native and
-  unaffected.
-- **Force Reload** is a normal reload; WKWebView has no cache-bypass reload.
-
-## Clearing session data
-
-Quit the app, then:
+## Clearing app data
 
 ```bash
 rm -rf ~/Library/WebKit/com.srikarsunchu.whopdesktop
@@ -148,6 +154,6 @@ rm -rf ~/Library/Caches/com.srikarsunchu.whopdesktop
 
 ## License & trademarks
 
-MIT, see [LICENSE](./LICENSE). Original work © siyabendoezdemir, fork
-© srikarsunchu. "Whop" and the Whop logo are trademarks of their respective
-owner; this project's license covers its own source code only.
+MIT, see [LICENSE](./LICENSE). Original wrapper © siyabendoezdemir, this
+project © srikarsunchu. "Whop" and the Whop logo are trademarks of their
+respective owner; this license covers this project's own source code only.

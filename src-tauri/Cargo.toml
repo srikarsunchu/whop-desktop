@@ -1,13 +1,11 @@
 [package]
 name = "whop-desktop"
-version = "0.2.0"
-description = "Whop Desktop — unofficial personal-use macOS wrapper for whop.com with tweaks"
+version = "0.3.0"
+description = "Whop Desktop — a native macOS command center for Whop businesses, built on the Whop CLI"
 authors = ["srikarsunchu"]
 edition = "2021"
 rust-version = "1.77"
 
-# The library holds all app logic; main.rs is a thin launcher. This mirrors the
-# standard Tauri 2 project layout.
 [lib]
 name = "whop_desktop_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
@@ -21,13 +19,6 @@ tauri-plugin-notification = "2.3.3"
 tauri-plugin-global-shortcut = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-
-# Native drag strip under the hidden title bar (see install_drag_strip in lib.rs).
-[target.'cfg(target_os = "macos")'.dependencies]
-objc2 = "0.6"
-objc2-foundation = { version = "0.3", features = ["NSGeometry"] }
-objc2-app-kit = { version = "0.3", features = ["NSEvent", "NSWindow", "NSView", "NSResponder", "block2"] }
-block2 = "0.6"
 
 [profile.release]
 panic = "abort"

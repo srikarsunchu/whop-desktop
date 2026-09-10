@@ -1,18 +1,11 @@
 import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
 
-// Minimal Vite config. This local frontend exists only to satisfy Tauri's
-// `frontendDist` bundling requirement. The actual app window loads
-// https://whop.com directly as a top-level external URL (see src-tauri/src/lib.rs),
-// so this bundle is effectively a fallback/placeholder that the user never sees.
+// Local React frontend for Whop Desktop. Served by Tauri from ../dist in
+// production and by the Vite dev server (port 1420) during `pnpm tauri dev`.
 export default defineConfig({
+  plugins: [react()],
   clearScreen: false,
-  build: {
-    outDir: "dist",
-    emptyOutDir: true,
-    target: "es2021",
-  },
-  server: {
-    port: 1420,
-    strictPort: true,
-  },
+  server: { port: 1420, strictPort: true },
+  build: { target: "safari15", outDir: "dist", emptyOutDir: true },
 });

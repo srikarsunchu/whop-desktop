@@ -1,53 +1,17 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" class="dark">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Whop Desktop</title>
     <style>
-      :root {
-        color-scheme: light dark;
-      }
-      html,
-      body {
-        margin: 0;
-        height: 100%;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: #0b0b0f;
-        color: #f5f5f7;
-      }
-      .splash {
-        text-align: center;
-        opacity: 0.85;
-      }
-      .spinner {
-        width: 28px;
-        height: 28px;
-        margin: 16px auto 0;
-        border: 3px solid rgba(255, 255, 255, 0.2);
-        border-top-color: #f5f5f7;
-        border-radius: 50%;
-        animation: spin 0.8s linear infinite;
-      }
-      @keyframes spin {
-        to {
-          transform: rotate(360deg);
-        }
-      }
+      /* Paint the ground before React mounts so the overlay title bar never flashes white. */
+      html, body { margin: 0; height: 100%; background: #111111; color-scheme: dark; }
+      #root { height: 100%; }
     </style>
   </head>
   <body>
-    <!--
-      Placeholder/fallback frontend only. The real window loads https://whop.com
-      directly as a top-level external URL from the Rust backend.
-    -->
-    <div class="splash">
-      <div>Loading Whop Desktop…</div>
-      <div class="spinner"></div>
-    </div>
-    <script type="module" src="/src/main.ts"></script>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

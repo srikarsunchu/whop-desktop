@@ -1,26 +1,24 @@
-//! Whop Desktop — an unofficial, personal-use macOS desktop wrapper around
-//! whop.com. Fork of siyabendoezdemir/whop-desktop with a hidden title bar,
-//! a menu-bar tray icon + global hotkey, and user CSS tweaks.
+//! Whop Desktop — a native macOS command center for Whop businesses, built on
+//! the Whop CLI. Started as a fork of siyabendoezdemir/whop-desktop.
 //!
 //! Architecture overview (see README.md for the long version):
 //!
-//! * The main window is created programmatically in Rust and points at
-//!   `https://whop.com` as a TOP-LEVEL external URL via
-//!   `WebviewUrl::External` — NOT an iframe. This lets WKWebView own cookies,
-//!   localStorage, OAuth popups, and downloads exactly like a normal browser.
-//! * The remote page is NEVER granted Tauri IPC access (see
-//!   `capabilities/main-capability.json`). All native behaviour (downloads,
-//!   notifications, menu actions, tray, hotkey, window dragging) is driven from
-//!   this Rust code and is invisible to the web page.
-//! * The only thing pushed INTO the page is `js/init.js`, an app-authored
-//!   script that adds stylesheets (title-bar padding, tweaks, custom.css) and
-//!   a tiny `window.__whopDesktop` object that Rust drives via `eval`.
-//! * Navigation, popups (`window.open` / `target="_blank"`), downloads, and
-//!   non-web schemes are handled by the builder callbacks below.
+//! * The MAIN window is a local React app (`WebviewUrl::App`). Its only native
+//!   capability is a handful of commands below that shell out to the `whop`
+//!   binary with `--format json`. No API keys or tokens ever pass through this
+//!   app: authentication, account selection and pagination stay in the CLI.
+//! * An optional WEB window loads `https://whop.com` as a top-level external
+//!   URL for the parts of Whop that have no CLI (chat, storefront editing).
+//!   That window is NEVER granted Tauri IPC (`capabilities/main-capability.json`
+//!   has no `remote` allowlist). The only thing pushed into it is `js/init.js`,
+//!   an app-authored script for CSS tweaks and the Google passkey workaround.
+//! * Tray icon, global hotkey, downloads, notifications and the menu are all
+//!   driven from Rust.
 
 use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::process::Command;
 use std::sync::Mutex;
 
 use serde::{Deserialize, Serialize};
@@ -32,7 +30,8 @@ use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent}
 use tauri::utils::config::BackgroundThrottlingPolicy;
 use tauri::webview::{DownloadEvent, NewWindowResponse, WebviewWindowBuilder};
 use tauri::{
-    AppHandle, Manager, RunEvent, TitleBarStyle, Url, WebviewUrl, WebviewWindow, WindowEvent, Wry,
+    AppHandle, Emitter, Manager, RunEvent, TitleBarStyle, Url, WebviewUrl, WebviewWindow,
+    WindowEvent, Wry,
 };
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
 use tauri_plugin_notification::NotificationExt;
@@ -41,8 +40,10 @@ use tauri_plugin_notification::NotificationExt;
 const APP_NAME: &str = "Whop Desktop";
 /// The single site this wrapper exists to host.
 const WHOP_URL: &str = "https://whop.com";
-/// Stable window label used everywhere we look the window up.
+/// Stable window labels.
 const MAIN_LABEL: &str = "main";
+/// The optional whop.com webview window.
+const WEB_LABEL: &str = "web";
 /// Tray icon id.
 const TRAY_ID: &str = "main-tray";
 /// Global (system-wide) shortcut that shows/hides the window.
@@ -50,12 +51,9 @@ const TOGGLE_SHORTCUT: &str = "cmd+shift+w";
 /// Prefs + custom CSS live in `~/Library/Application Support/<identifier>/`.
 const PREFS_FILE: &str = "prefs.json";
 const CUSTOM_CSS_FILE: &str = "custom.css";
-/// Height (pt) of the strip under the hidden title bar. The injected CSS pads
-/// whop.com's layout by this much and the native drag monitor treats clicks in
-/// it as window drags.
-const TITLEBAR_HEIGHT: f64 = 28.0;
-/// Width (pt) reserved for the traffic lights; clicks there are left to AppKit.
-const TRAFFIC_LIGHTS_WIDTH: f64 = 80.0;
+/// Height (pt) the injected CSS pads whop.com's layout by in the web window
+/// (kept at 0 there because that window has a normal title bar).
+const TITLEBAR_HEIGHT: f64 = 0.0;
 
 /// A fixed 16-byte WKWebView data-store identifier. Using a constant value
 /// guarantees the SAME persistent cookie / localStorage / session store is
@@ -246,7 +244,7 @@ fn set_tweak(app: &AppHandle, id: &str, enabled: bool) {
         js_literal(&id, "\"\""),
         enabled
     );
-    with_main(app, |w| {
+    with_web(app, |w| {
         let _ = w.eval(&js);
     });
 }
@@ -254,7 +252,7 @@ fn set_tweak(app: &AppHandle, id: &str, enabled: bool) {
 /// Re-reads custom.css and applies it to the live page without a reload.
 fn reload_custom_css(app: &AppHandle) {
     let css = js_literal(&read_custom_css(app), "\"\"");
-    with_main(app, |w| {
+    with_web(app, |w| {
         let _ = w.eval(&format!(
             "window.__whopDesktop && window.__whopDesktop.setCustomCss({css})"
         ));
@@ -388,10 +386,36 @@ fn download_target(app: &AppHandle, url: &Url) -> PathBuf {
 // Window creation
 // ---------------------------------------------------------------------------
 
-/// Creates the main window if it does not exist, otherwise shows/focuses it.
-/// Used at startup and on Dock-icon reopen.
+/// Creates the main (local React) window if it does not exist, otherwise
+/// shows/focuses it. Used at startup and on Dock-icon reopen.
 fn show_or_create_main(app: &AppHandle) -> tauri::Result<()> {
     if let Some(win) = app.get_webview_window(MAIN_LABEL) {
+        let _ = win.show();
+        let _ = win.set_focus();
+        return Ok(());
+    }
+
+    WebviewWindowBuilder::new(app, MAIN_LABEL, WebviewUrl::App("index.html".into()))
+        .title(APP_NAME)
+        .inner_size(1360.0, 860.0)
+        .min_inner_size(960.0, 640.0)
+        .center()
+        .resizable(true)
+        // Hidden title bar: the traffic lights float over the sidebar, which
+        // carries a `data-tauri-drag-region` header.
+        .title_bar_style(TitleBarStyle::Overlay)
+        .hidden_title(true)
+        .zoom_hotkeys_enabled(false)
+        .devtools(cfg!(debug_assertions))
+        .build()?;
+    Ok(())
+}
+
+/// Creates (or focuses) the optional whop.com window. It gets the persistent
+/// data store, the download handling, and the injected tweaks script — and no
+/// Tauri IPC.
+fn show_or_create_web(app: &AppHandle) -> tauri::Result<()> {
+    if let Some(win) = app.get_webview_window(WEB_LABEL) {
         let _ = win.show();
         let _ = win.set_focus();
         return Ok(());
@@ -401,28 +425,19 @@ fn show_or_create_main(app: &AppHandle) -> tauri::Result<()> {
         .parse::<Url>()
         .expect("WHOP_URL is a valid constant URL");
 
-    let win = WebviewWindowBuilder::new(app, MAIN_LABEL, WebviewUrl::External(url))
-        .title(APP_NAME)
-        .inner_size(1440.0, 900.0)
-        .min_inner_size(1000.0, 700.0)
+    WebviewWindowBuilder::new(app, WEB_LABEL, WebviewUrl::External(url))
+        .title("Whop")
+        .inner_size(1280.0, 840.0)
+        .min_inner_size(900.0, 600.0)
         .center()
         .resizable(true)
-        // Hidden title bar: the traffic lights float over the page content and
-        // the injected CSS pads the page so nothing sits underneath them.
-        .title_bar_style(TitleBarStyle::Overlay)
-        .hidden_title(true)
         // Persistent (non-incognito) store keeps cookies + login across launches.
         .incognito(false)
         .data_store_identifier(DATA_STORE_ID)
-        // Cmd +/-/0 zoom shortcuts handled natively by the webview.
         .zoom_hotkeys_enabled(true)
-        // Keep timers/media alive in the background so calls and any
-        // notification logic are not throttled when the window is not focused.
         .background_throttling(BackgroundThrottlingPolicy::Disabled)
-        // Web Inspector is only compiled in for debug builds.
         .devtools(cfg!(debug_assertions))
-        // App-authored page script (title-bar padding, tweaks, custom.css).
-        // Main frame only; popups get WKWebView's plain default.
+        // App-authored page script (tweaks, custom.css, Google passkey fix).
         .initialization_script(build_init_script(app))
         .on_navigation(allow_navigation)
         .on_new_window(|url, _features| handle_new_window(&url))
@@ -449,7 +464,6 @@ fn show_or_create_main(app: &AppHandle) -> tauri::Result<()> {
                         .and_then(|s| s.to_str())
                         .unwrap_or("download")
                         .to_string();
-                    // Log host + filename + success only — never the signed URL.
                     dlog(&format!(
                         "download finished {} file={name} success={success}",
                         host_only(&url)
@@ -462,8 +476,6 @@ fn show_or_create_main(app: &AppHandle) -> tauri::Result<()> {
                                 }
                             }
                         }
-                        // Native completion notification (best-effort; only
-                        // shows if the user has granted notification permission).
                         let _ = app
                             .notification()
                             .builder()
@@ -473,82 +485,156 @@ fn show_or_create_main(app: &AppHandle) -> tauri::Result<()> {
                     }
                     true
                 }
-                // DownloadEvent is #[non_exhaustive].
                 _ => true,
             }
         })
         .build()?;
-
-    // Native drag strip under the hidden title bar. Tauri's data-tauri-drag-region
-    // needs IPC (which the remote page deliberately lacks), so we handle it in
-    // AppKit instead. Must run on the main thread once the NSWindow exists.
-    #[cfg(target_os = "macos")]
-    if let Ok(ptr) = win.ns_window() {
-        let addr = ptr as usize;
-        let _ = app.run_on_main_thread(move || {
-            // SAFETY: `addr` is the NSWindow of a window that lives for the whole
-            // process (close hides it, never destroys it), and we're on the main
-            // thread.
-            unsafe { drag::install_drag_strip(addr) };
-        });
-    }
-
     Ok(())
 }
 
-/// AppKit-level "drag the window when the user grabs the top strip" behaviour.
-#[cfg(target_os = "macos")]
-mod drag {
-    use super::{TITLEBAR_HEIGHT, TRAFFIC_LIGHTS_WIDTH};
-    use block2::RcBlock;
-    use objc2::rc::Retained;
-    use objc2_app_kit::{NSEvent, NSEventMask, NSWindow, NSWindowStyleMask};
-    use std::ptr::NonNull;
+// ---------------------------------------------------------------------------
+// Whop CLI bridge (Tauri commands used by the local frontend only)
+// ---------------------------------------------------------------------------
 
-    /// Installs a local NSEvent monitor that turns left-mouse-down events in the
-    /// top `TITLEBAR_HEIGHT` points of `ns_window` (right of the traffic
-    /// lights) into a native window drag, and double-clicks into zoom.
-    pub(super) unsafe fn install_drag_strip(ns_window_ptr: usize) {
-        let Some(window) = Retained::retain(ns_window_ptr as *mut NSWindow) else {
-            return;
-        };
-        let window_number = window.windowNumber();
+/// Locates the `whop` binary. GUI apps launched from Finder get a minimal PATH,
+/// so the usual install locations are checked explicitly.
+fn whop_binary() -> Option<PathBuf> {
+    if let Some(p) = std::env::var_os("WHOP_BIN") {
+        let p = PathBuf::from(p);
+        if p.is_file() {
+            return Some(p);
+        }
+    }
+    let home = std::env::var("HOME").unwrap_or_default();
+    let mut candidates: Vec<PathBuf> = vec![
+        PathBuf::from(&home).join(".local/bin/whop"),
+        PathBuf::from("/opt/homebrew/bin/whop"),
+        PathBuf::from("/usr/local/bin/whop"),
+        PathBuf::from(&home).join(".npm-global/bin/whop"),
+    ];
+    if let Some(path) = std::env::var_os("PATH") {
+        for dir in std::env::split_paths(&path) {
+            candidates.push(dir.join("whop"));
+        }
+    }
+    candidates.into_iter().find(|p| p.is_file())
+}
 
-        let block = RcBlock::new(move |event: NonNull<NSEvent>| -> *mut NSEvent {
-            let ev = event.as_ref();
-            if ev.windowNumber() != window_number {
-                return event.as_ptr();
-            }
-            if window.styleMask().contains(NSWindowStyleMask::FullScreen) {
-                return event.as_ptr();
-            }
-            // Window coordinates: origin bottom-left, y grows upward.
-            let loc = ev.locationInWindow();
-            let content_h = window
-                .contentView()
-                .map(|v| v.frame().size.height)
-                .unwrap_or(0.0);
-            let in_strip = loc.y >= content_h - TITLEBAR_HEIGHT
-                && loc.y <= content_h
-                && loc.x > TRAFFIC_LIGHTS_WIDTH;
-            if !in_strip {
-                return event.as_ptr();
-            }
-            if ev.clickCount() >= 2 {
-                window.performZoom(None);
-            } else {
-                window.performWindowDragWithEvent(ev);
-            }
-            // Swallow the event: the strip is padding we injected, so the page
-            // has nothing interactive there.
-            std::ptr::null_mut()
+/// Output of a raw CLI run.
+#[derive(Serialize)]
+struct RawOutput {
+    stdout: String,
+    stderr: String,
+    code: i32,
+}
+
+/// Runs `whop <args>` and returns stdout/stderr/exit code.
+///
+/// SECURITY: this is the only bridge between the UI and the machine. It runs
+/// exactly one fixed binary, never a shell, so arguments cannot inject
+/// commands. It is only reachable from the local frontend (see capabilities).
+fn run_whop(args: &[String]) -> Result<RawOutput, String> {
+    let bin = whop_binary().ok_or_else(|| {
+        "Whop CLI not found. Install it with `curl -fsSL https://whop.com/install.sh | sh` and sign in with `whop login`.".to_string()
+    })?;
+    let home = std::env::var("HOME").unwrap_or_default();
+    let extra = format!(
+        "{home}/.local/bin:/opt/homebrew/bin:/usr/local/bin:{}",
+        std::env::var("PATH").unwrap_or_default()
+    );
+    let out = Command::new(&bin)
+        .args(args)
+        .env("PATH", extra)
+        .env("NO_COLOR", "1")
+        .env("CI", "1")
+        .output()
+        .map_err(|e| format!("failed to run whop: {e}"))?;
+    Ok(RawOutput {
+        stdout: String::from_utf8_lossy(&out.stdout).into_owned(),
+        stderr: String::from_utf8_lossy(&out.stderr).into_owned(),
+        code: out.status.code().unwrap_or(-1),
+    })
+}
+
+#[tauri::command]
+fn whop_raw(args: Vec<String>) -> Result<RawOutput, String> {
+    dlog(&format!("whop raw {}", args.first().cloned().unwrap_or_default()));
+    run_whop(&args)
+}
+
+/// Runs a CLI command with `--format json` and returns the parsed JSON. CLI
+/// error envelopes (`{code, message}`) are passed through for the UI to show.
+#[tauri::command]
+fn whop_json(args: Vec<String>) -> Result<serde_json::Value, String> {
+    dlog(&format!(
+        "whop json {} {}",
+        args.first().cloned().unwrap_or_default(),
+        args.get(1).cloned().unwrap_or_default()
+    ));
+    let mut full = args.clone();
+    if !full.iter().any(|a| a == "--format") {
+        full.push("--format".into());
+        full.push("json".into());
+    }
+    let out = run_whop(&full)?;
+    let text = out.stdout.trim();
+    if text.is_empty() {
+        if out.code == 0 {
+            return Ok(serde_json::Value::Null);
+        }
+        return Err(if out.stderr.trim().is_empty() {
+            format!("whop exited with code {}", out.code)
+        } else {
+            out.stderr.trim().to_string()
         });
+    }
+    serde_json::from_str(text).map_err(|_| {
+        // Non-JSON output (e.g. an interactive prompt or plain text error).
+        let msg = if out.stderr.trim().is_empty() {
+            text.to_string()
+        } else {
+            out.stderr.trim().to_string()
+        };
+        msg.chars().take(2000).collect()
+    })
+}
 
-        let monitor =
-            NSEvent::addLocalMonitorForEventsMatchingMask_handler(NSEventMask::LeftMouseDown, &block);
-        // The window is a process-lifetime singleton; keep the monitor forever.
-        std::mem::forget(monitor);
-        std::mem::forget(block);
+/// Optional launch hints (used for testing/screenshots): which business and
+/// view to open first. Read from the environment of the process.
+#[derive(Serialize)]
+struct LaunchHints {
+    account: Option<String>,
+    view: Option<String>,
+}
+
+#[tauri::command]
+fn launch_hints() -> LaunchHints {
+    LaunchHints {
+        account: std::env::var("WHOP_DESKTOP_ACCOUNT").ok(),
+        view: std::env::var("WHOP_DESKTOP_VIEW").ok(),
+    }
+}
+
+#[tauri::command]
+fn whop_binary_path() -> Option<String> {
+    whop_binary().map(|p| p.to_string_lossy().into_owned())
+}
+
+#[tauri::command]
+fn open_web_window(app: AppHandle) -> Result<(), String> {
+    show_or_create_web(&app).map_err(|e| e.to_string())
+}
+
+/// Opens an https URL in the user's default browser.
+#[tauri::command]
+fn open_external(url: String) -> Result<(), String> {
+    let parsed = url.parse::<Url>().map_err(|e| e.to_string())?;
+    match parsed.scheme() {
+        "https" | "http" => {
+            open_with_system(&parsed);
+            Ok(())
+        }
+        other => Err(format!("refusing to open scheme {other}")),
     }
 }
 
@@ -695,16 +781,24 @@ fn build_menu(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
         view_builder = view_builder.separator().item(&inspector);
     }
 
-    let view_menu = view_builder.build()?;
+    let view_menu = view_builder.build()?; // items act on the whop.com web window
 
     // Window menu.
     let toggle = MenuItemBuilder::with_id("toggle_window", &format!("Show/Hide {APP_NAME}"))
         .accelerator("CmdOrCtrl+Shift+W")
         .build(app)?;
+    let open_web = MenuItemBuilder::with_id("open_web", "Open Whop on the Web")
+        .accelerator("CmdOrCtrl+Shift+O")
+        .build(app)?;
+    let palette = MenuItemBuilder::with_id("palette", "Command Palette\u{2026}")
+        .accelerator("CmdOrCtrl+K")
+        .build(app)?;
     let window_menu = SubmenuBuilder::new(app, "Window")
         .item(&PredefinedMenuItem::minimize(app, None)?)
         .item(&PredefinedMenuItem::maximize(app, Some("Zoom"))?)
         .separator()
+        .item(&palette)
+        .item(&open_web)
         .item(&toggle)
         .build()?;
 
@@ -763,9 +857,9 @@ fn register_global_shortcut(app: &AppHandle) {
     }
 }
 
-/// Runs a closure with the main webview window if it exists.
-fn with_main<F: FnOnce(&WebviewWindow)>(app: &AppHandle, f: F) {
-    if let Some(win) = app.get_webview_window(MAIN_LABEL) {
+/// Runs a closure with the whop.com web window if it is open.
+fn with_web<F: FnOnce(&WebviewWindow)>(app: &AppHandle, f: F) {
+    if let Some(win) = app.get_webview_window(WEB_LABEL) {
         f(&win);
     }
 }
@@ -778,7 +872,7 @@ fn set_zoom_abs(app: &AppHandle, value: f64) {
             *z = clamped;
         }
     }
-    with_main(app, |w| {
+    with_web(app, |w| {
         let _ = w.set_zoom(clamped);
     });
 }
@@ -810,18 +904,18 @@ fn handle_menu_event(app: &AppHandle, event: MenuEvent) {
         return;
     }
     match id {
-        "back" => with_main(app, |w| {
+        "back" => with_web(app, |w| {
             let _ = w.eval("window.history.back()");
         }),
-        "forward" => with_main(app, |w| {
+        "forward" => with_web(app, |w| {
             let _ = w.eval("window.history.forward()");
         }),
-        "reload" => with_main(app, |w| {
+        "reload" => with_web(app, |w| {
             let _ = w.reload();
         }),
         // WKWebView has no public hard-bypass-cache reload; a normal reload is
         // the safe equivalent here.
-        "force_reload" => with_main(app, |w| {
+        "force_reload" => with_web(app, |w| {
             let _ = w.eval("window.location.reload()");
         }),
         "actual_size" => set_zoom_abs(app, 1.0),
@@ -830,6 +924,16 @@ fn handle_menu_event(app: &AppHandle, event: MenuEvent) {
         "edit_custom_css" => edit_custom_css(app),
         "reload_custom_css" => reload_custom_css(app),
         "toggle_window" | "tray_toggle" => toggle_main_window(app),
+        "open_web" => {
+            let _ = show_or_create_web(app);
+        }
+        "palette" => {
+            if let Some(w) = app.get_webview_window(MAIN_LABEL) {
+                let _ = w.show();
+                let _ = w.set_focus();
+                let _ = w.emit("palette", ());
+            }
+        }
         "tray_quit" => app.exit(0),
         "reveal_download" => {
             if let Some(state) = app.try_state::<AppState>() {
@@ -846,7 +950,11 @@ fn handle_menu_event(app: &AppHandle, event: MenuEvent) {
             }
         }
         #[cfg(debug_assertions)]
-        "inspector" => with_main(app, |w| w.open_devtools()),
+        "inspector" => {
+            if let Some(w) = app.get_webview_window(MAIN_LABEL) {
+                w.open_devtools();
+            }
+        }
         _ => {}
     }
 }
@@ -873,31 +981,24 @@ pub fn run() {
             Ok(())
         })
         .on_window_event(|window, event| {
-            if window.label() != MAIN_LABEL {
-                return;
-            }
-            match event {
-                // Standard macOS behaviour: closing the window with the red
-                // button hides it (keeping the app and the in-memory session
-                // alive) instead of quitting. Reopen via the Dock icon, the
-                // tray icon, or the global shortcut.
-                WindowEvent::CloseRequested { api, .. } => {
+            // Standard macOS behaviour: closing the main window with the red
+            // button hides it (keeping the app alive in the tray) instead of
+            // quitting. The web window closes normally.
+            if window.label() == MAIN_LABEL {
+                if let WindowEvent::CloseRequested { api, .. } = event {
                     let _ = window.hide();
                     api.prevent_close();
                 }
-                // Collapse the title-bar padding while in fullscreen (the
-                // traffic lights are hidden there).
-                WindowEvent::Resized(_) => {
-                    let fs = window.is_fullscreen().unwrap_or(false);
-                    if let Some(w) = window.get_webview_window(MAIN_LABEL) {
-                        let _ = w.eval(&format!(
-                            "window.__whopDesktop && window.__whopDesktop.setFullscreen({fs})"
-                        ));
-                    }
-                }
-                _ => {}
             }
         })
+        .invoke_handler(tauri::generate_handler![
+            whop_json,
+            whop_raw,
+            whop_binary_path,
+            launch_hints,
+            open_web_window,
+            open_external
+        ])
         .build(tauri::generate_context!())
         .expect("error while building the Whop Desktop application")
         .run(|app, event| {

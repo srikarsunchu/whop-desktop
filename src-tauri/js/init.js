@@ -5,6 +5,22 @@
 ;(function () {
   if (window.__whopDesktop) return;
   var host = location.hostname;
+
+  // Google sign-in popup. WKWebView only offers the cross-device (Bluetooth)
+  // passkey path, so when Google sees a passkey-capable browser it tries that
+  // and fails with "Something went wrong". Hide WebAuthn from the page so
+  // Google falls back to its normal password flow.
+  if (host === 'accounts.google.com' || host.endsWith('.google.com')) {
+    try { delete window.PublicKeyCredential; } catch (e) {}
+    try {
+      Object.defineProperty(window, 'PublicKeyCredential', { value: undefined, configurable: true, writable: true });
+    } catch (e) {}
+    try {
+      Object.defineProperty(Navigator.prototype, 'credentials', { get: function () { return undefined; }, configurable: true });
+    } catch (e) {}
+    return;
+  }
+
   if (!(host === 'whop.com' || host.endsWith('.whop.com'))) return;
 
   var TITLEBAR = __WD_TITLEBAR_HEIGHT__;

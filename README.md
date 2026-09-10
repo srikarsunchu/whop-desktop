@@ -123,6 +123,18 @@ python3 scripts/make-tray-icon.py                    # menu-bar template icon
 | `src-tauri/capabilities/main-capability.json` | Minimal capability, no remote access |
 | `scripts/` | Icon generation and signed-build script |
 
+## Known limitations
+
+- **Google sign-in and passkeys.** WKWebView only supports the cross-device
+  (Bluetooth) passkey flow, so Google's "use your passkey" step fails with
+  "Something went wrong". The injected script hides WebAuthn from
+  `accounts.google.com` so Google falls back to a password prompt. If you still
+  hit it, click "Try another way" in the Google popup.
+- **Web Push from Whop** depends on WKWebView and Whop's service worker; the
+  app neither guarantees nor fakes it. Download notifications are native and
+  unaffected.
+- **Force Reload** is a normal reload; WKWebView has no cache-bypass reload.
+
 ## Clearing session data
 
 Quit the app, then:

@@ -22,7 +22,7 @@ function load(id: string): Conversation {
   return { sessionId: null, messages: [] };
 }
 
-export function Assistant({ seed, onSeedConsumed }: { seed: string | null; onSeedConsumed: () => void }) {
+export function Assistant({ seed, onSeedConsumed, chatSeed, onChatSeedConsumed }: { seed: string | null; onSeedConsumed: () => void; chatSeed?: string | null; onChatSeedConsumed?: () => void }) {
   const { account } = useAccount();
   const acctKey = account?.id ?? "none";
   const [mode, setMode] = useState<"chat" | "raw">(() => (seed ? "raw" : "chat"));
@@ -49,6 +49,14 @@ export function Assistant({ seed, onSeedConsumed }: { seed: string | null; onSee
   useEffect(() => {
     if (seed) setMode("raw");
   }, [seed]);
+  useEffect(() => {
+    if (chatSeed) {
+      setMode("chat");
+      setInput(chatSeed);
+      onChatSeedConsumed?.();
+      setTimeout(() => taRef.current?.focus(), 0);
+    }
+  }, [chatSeed, onChatSeedConsumed]);
   useEffect(() => {
     if (account?.demo) syncDemoFixtures();
   }, [account?.demo]);

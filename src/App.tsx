@@ -5,6 +5,7 @@ import { NAV, Sidebar, type ViewId } from "./components/Sidebar";
 import { Palette } from "./components/Palette";
 import { AccountContext, runWhopJson, runWhopRaw, type Account } from "./lib/whop";
 import { DEMO_ACCOUNT } from "./lib/demo";
+import { syncDemoFixtures } from "./lib/assistant";
 import { Overview } from "./views/Overview";
 import { Money } from "./views/Money";
 import { Members } from "./views/Members";
@@ -12,6 +13,9 @@ import { Products } from "./views/Products";
 import { People } from "./views/People";
 import { Apps } from "./views/Apps";
 import { Assistant } from "./views/Assistant";
+import { Ads } from "./views/Ads";
+import { Studio } from "./views/Studio";
+import { Growth } from "./views/Growth";
 import { AccountView } from "./views/Account";
 
 interface AuthStatus {
@@ -30,6 +34,7 @@ export function App() {
   });
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [terminalSeed, setTerminalSeed] = useState<string | null>(null);
+  const [chatSeed, setChatSeed] = useState<string | null>(null);
 
   const [account, setAccountState] = useState<Account | null>(null);
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -99,6 +104,11 @@ export function App() {
     refreshAccounts();
   }, [refreshAccounts]);
 
+  // Keep the shim's demo fixtures current whenever the demo business is active.
+  useEffect(() => {
+    if (account?.demo) syncDemoFixtures();
+  }, [account?.demo]);
+
   // ⌘K from the native menu, and from the keyboard.
   useEffect(() => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -110,7 +120,7 @@ export function App() {
         return;
       }
       // ⌘1…⌘8 jump between views.
-      if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && /^[1-8]$/.test(e.key)) {
+      if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && /^[1-9]$/.test(e.key)) {
         const target = NAV[Number(e.key) - 1];
         if (target) {
           e.preventDefault();
@@ -128,6 +138,14 @@ export function App() {
   const runInTerminal = useCallback(
     (command: string) => {
       setTerminalSeed(command);
+      setView("assistant");
+    },
+    [setView],
+  );
+
+  const ask = useCallback(
+    (prompt: string) => {
+      setChatSeed(prompt);
       setView("assistant");
     },
     [setView],
@@ -152,11 +170,20 @@ export function App() {
     case "people":
       page = <People runInTerminal={runInTerminal} />;
       break;
+    case "ads":
+      page = <Ads runInTerminal={runInTerminal} ask={ask} />;
+      break;
+    case "studio":
+      page = <Studio runInTerminal={runInTerminal} ask={ask} />;
+      break;
     case "apps":
-      page = <Apps runInTerminal={runInTerminal} />;
+      page = <Apps runInTerminal={runInTerminal} ask={ask} />;
+      break;
+    case "growth":
+      page = <Growth runInTerminal={runInTerminal} ask={ask} />;
       break;
     case "assistant":
-      page = <Assistant seed={terminalSeed} onSeedConsumed={() => setTerminalSeed(null)} />;
+      page = <Assistant seed={terminalSeed} onSeedConsumed={() => setTerminalSeed(null)} chatSeed={chatSeed} onChatSeedConsumed={() => setChatSeed(null)} />;
       break;
     case "account":
       page = <AccountView runInTerminal={runInTerminal} />;

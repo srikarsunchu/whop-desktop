@@ -24,6 +24,11 @@ const COMMON: { label: string; command: string }[] = [
   { label: "Switch business", command: "whop auth account" },
   { label: "Recommended actions", command: "whop recommended-actions list" },
   { label: "Create export", command: "whop exports create" },
+  { label: "Ad campaigns", command: "whop ad-campaigns list" },
+  { label: "Generate an image", command: 'whop media generate --type image --prompt "" --wait true' },
+  { label: "Bounties", command: "whop bounties list" },
+  { label: "Partner leaderboard", command: "whop partners leaderboard" },
+  { label: "Clone a blueprint", command: 'whop apps init --template app_ --name "" --app_type website' },
 ];
 
 export function Palette({ open, onOpenChange, onNavigate, onRun }: { open: boolean; onOpenChange: (o: boolean) => void; onNavigate: (v: ViewId) => void; onRun: (command: string) => void }) {

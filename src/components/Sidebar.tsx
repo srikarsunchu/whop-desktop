@@ -5,6 +5,9 @@ import {
   CheckIcon,
   ChevronDownIcon,
   ChatBubbleIcon,
+  ImageIcon,
+  MagicWandIcon,
+  StarIcon,
   CubeIcon,
   EyeOpenIcon,
   GearIcon,
@@ -17,7 +20,7 @@ import {
 import { invoke } from "@tauri-apps/api/core";
 import { useAccount } from "../lib/whop";
 
-export type ViewId = "overview" | "money" | "members" | "products" | "people" | "apps" | "assistant" | "account";
+export type ViewId = "overview" | "money" | "members" | "products" | "people" | "ads" | "studio" | "apps" | "growth" | "assistant" | "account";
 
 export const NAV: { id: ViewId; label: string; icon: React.ComponentType<{ className?: string }>; hint?: string }[] = [
   { id: "overview", label: "Overview", icon: HomeIcon },
@@ -25,7 +28,10 @@ export const NAV: { id: ViewId; label: string; icon: React.ComponentType<{ class
   { id: "members", label: "Members", icon: PersonIcon },
   { id: "products", label: "Products", icon: CubeIcon },
   { id: "people", label: "People", icon: EyeOpenIcon },
+  { id: "ads", label: "Ads", icon: MagicWandIcon },
+  { id: "studio", label: "Studio", icon: ImageIcon },
   { id: "apps", label: "Apps", icon: RocketIcon },
+  { id: "growth", label: "Growth", icon: StarIcon },
   { id: "assistant", label: "Assistant", icon: ChatBubbleIcon },
   { id: "account", label: "Account", icon: GearIcon },
 ];

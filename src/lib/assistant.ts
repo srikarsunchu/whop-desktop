@@ -172,6 +172,19 @@ export function buildDemoFixtures(): Record<string, unknown> {
     ["stats get account_balance", ["stats", "get", "account_balance"]],
     ["stats get visitors", ["stats", "get", "visitors"]],
     ["stats get", ["stats", "get", "net_revenue"]],
+    ["stats get ad_spend", ["stats", "get", "ad_spend"]],
+    ["ad-campaigns list"],
+    ["ad-campaigns list --status active", ["ad-campaigns", "list", "--status", "active"]],
+    ["ad-campaigns list --status paused", ["ad-campaigns", "list", "--status", "paused"]],
+    ["ad-groups list"],
+    ["ads list"],
+    ["audiences list"],
+    ["social-accounts list"],
+    ["bounties list"],
+    ["partners list"],
+    ["partners leaderboard"],
+    ["media generate"],
+    ["media get"],
   ] as const;
   const out: Record<string, unknown> = {};
   for (const [key, args] of keys) {
@@ -246,4 +259,6 @@ export const SUGGESTIONS = [
   "Summarize my balance and when the next payout lands",
   "List members who joined in the last 7 days",
   "Draft a win-back message for members who canceled this month",
+  "How are my ad campaigns doing, and which one should I scale?",
+  "Draft a clipping bounty with a $500 pool for my best product",
 ];

@@ -31,7 +31,10 @@ Every screen is a `whop …` command with a face.
 | **Members** | `memberships list` with status filters and row actions (pause, resume, cancel, all confirmed first), `members list` |
 | **Products** | `products list` with default plan price, member count, visibility; publish / unpublish / delete, open store page, list plans |
 | **People** | `people list`: location, device, events, purchases, LTV, last seen |
-| **Apps** | `apps list`, open the hosted domain, `apps logs`, deploy preview |
+| **Ads** | Meta campaigns from `ad-campaigns list` with 30-day spend, impressions, clicks, results and cost per result; ad groups, ads, audiences, connected social accounts; pause / unpause / duplicate / delete, retry payment; "Plan a campaign with Claude" |
+| **Studio** | Whop's AI media: `media generate --type image\|video --prompt … --wait true`, billed from your balance; gallery of results with file ids ready for `ads create --creatives` |
+| **Apps** | `apps list`, open the hosted domain, builds and logs, deploy preview, and **blueprints**: clone any whop.com/blueprints app with `apps init --template app_…` |
+| **Growth** | bounties (`bounties list`: pool, paid out, submissions; cancel), referred businesses and the partner leaderboard (`partners *`) |
 | **Assistant** | a Claude chat that operates the business through the CLI: every command it runs shows as a card with its output; writes stay blocked until you allow them. **Raw CLI** mode is one toggle away: history (↑), ⌘L clear, JSON highlighting, copy and re-run |
 | **Account** | `auth status`, `auth list` (switch profiles), `accounts get`, `team-members list`, CLI binary and version |
 
@@ -45,11 +48,11 @@ The `whop` that Claude sees is not the real binary. It is Whop Desktop itself ru
 - **serves the demo business** from fixtures the app writes, so the demo works end to end without touching a real account;
 - passes reads straight through to the real CLI.
 
-Conversations are kept per business and resume with `--resume`, so follow-ups have context. Each reply shows model, turns, time and cost.
+Conversations are kept per business and resume with `--resume`, so follow-ups have context. Each reply shows model, turns, time and cost. Claude's system prompt carries a compact reference for every CLI area the app covers (money, members, products, ads, AI media, bounties, partners, apps and blueprints), so it goes straight to the right command. Buttons across the app ("Plan a campaign with Claude", "Draft a bounty with Claude", "Ask Claude which blueprint") open the chat with a ready prompt.
 
 Plus:
 
-- **⌘1 to ⌘8** jump between views.
+- **⌘1 to ⌘9** jump between views.
 - **⌘K palette.** Jump to a view, switch business, run one of the common
   commands, or type any `whop …` line and hit ↵.
 - **Command strip** on every panel: copy it, run it in the Terminal, refresh,

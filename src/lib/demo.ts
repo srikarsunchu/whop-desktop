@@ -48,6 +48,9 @@ function series(metric: string, from: number, to: number): { timestamp: number; 
       case "account_balance":
         v = 12000 + i * 240 + r() * 900 - (i % 7 === 6 ? 4200 : 0);
         break;
+      case "ad_spend":
+        v = (30 + r() * 45) * weekend;
+        break;
       case "visitors":
         v = Math.round((1900 + r() * 1400) * weekend);
         break;
@@ -206,6 +209,40 @@ const actions = [
   { id: "rac_NwPayout", title: "Schedule weekly payouts", description: "$18,420.55 is available. Turn on automatic payouts every Friday.", category: "money" },
 ];
 
+const DEMO_POSTER =
+  "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDI0IDEwMjQiPjxkZWZzPjxsaW5lYXJHcmFkaWVudCBpZD0iZyIgeDE9IjAiIHkxPSIwIiB4Mj0iMSIgeTI9IjEiPjxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iIzBmMmExYyIvPjxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iIzA2MjAxMyIvPjwvbGluZWFyR3JhZGllbnQ+PHJhZGlhbEdyYWRpZW50IGlkPSJyIiBjeD0iMC43IiBjeT0iMC4zIiByPSIwLjYiPjxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iIzNkZDY4YyIgc3RvcC1vcGFjaXR5PSIwLjU1Ii8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjM2RkNjhjIiBzdG9wLW9wYWNpdHk9IjAiLz48L3JhZGlhbEdyYWRpZW50PjwvZGVmcz48cmVjdCB3aWR0aD0iMTAyNCIgaGVpZ2h0PSIxMDI0IiBmaWxsPSJ1cmwoI2cpIi8+PHJlY3Qgd2lkdGg9IjEwMjQiIGhlaWdodD0iMTAyNCIgZmlsbD0idXJsKCNyKSIvPjxjaXJjbGUgY3g9IjUxMiIgY3k9IjQ3MCIgcj0iMjMwIiBmaWxsPSJub25lIiBzdHJva2U9IiMzZGQ2OGMiIHN0cm9rZS13aWR0aD0iMjgiLz48Y2lyY2xlIGN4PSI1MTIiIGN5PSI0NzAiIHI9IjEyMCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjM2RkNjhjIiBzdHJva2Utd2lkdGg9IjI4Ii8+PGNpcmNsZSBjeD0iNTEyIiBjeT0iNDcwIiByPSIzNCIgZmlsbD0iIzNkZDY4YyIvPjx0ZXh0IHg9IjUxMiIgeT0iODYwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0iSW50ZXIsIEhlbHZldGljYSwgQXJpYWwsIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iNzIiIGZvbnQtd2VpZ2h0PSI2MDAiIGZpbGw9IiNmMmYyZjAiPlZJUCBQSUNLUzwvdGV4dD48dGV4dCB4PSI1MTIiIHk9IjkzMCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC1mYW1pbHk9IkludGVyLCBIZWx2ZXRpY2EsIEFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjM0IiBmaWxsPSIjYjRiNGI0Ij5TZWFzb24gcGFzcyDCtyA2MSUgaGl0IHJhdGUgwrcgTm9ydGh3aW5kIFBpY2tzPC90ZXh0Pjwvc3ZnPg==";
+
+const campaigns = [
+  { id: "adcamp_NwVipLeads", title: "VIP Picks — NFL kickoff", status: "active", objective: "sales", platform: "meta", budget_amount: 60, budget_type: "daily", budget_optimization: "ad_campaign", starts_at: iso(18 * DAY), ends_at: null, created_at: iso(18 * DAY), spend: 1044.2, impressions: 186400, reach: 121300, clicks: 4210, click_through_rate: 2.26, results: 63, cost_per_result: 16.58, return_on_ad_spend: 2.9 },
+  { id: "adcamp_NwSeasonRetarget", title: "Season Pass — retargeting", status: "active", objective: "sales", platform: "meta", budget_amount: 25, budget_type: "daily", budget_optimization: "ad_campaign", starts_at: iso(9 * DAY), ends_at: null, created_at: iso(9 * DAY), spend: 221.75, impressions: 31200, reach: 12800, clicks: 1140, click_through_rate: 3.65, results: 11, cost_per_result: 20.16, return_on_ad_spend: 14.8 },
+  { id: "adcamp_NwFreeRoom", title: "Free Picks Room — awareness", status: "paused", objective: "awareness", platform: "meta", budget_amount: 15, budget_type: "daily", budget_optimization: "ad_group", starts_at: iso(40 * DAY), ends_at: iso(12 * DAY), created_at: iso(40 * DAY), spend: 388.0, impressions: 402000, reach: 260000, clicks: 3900, click_through_rate: 0.97, results: 0, cost_per_result: null, return_on_ad_spend: 0 },
+];
+const adGroups = [
+  { id: "adgrp_NwLookalike", ad_campaign_id: "adcamp_NwVipLeads", title: "Lookalike of buyers · US · 21-45", status: "active", optimization_goal: "conversions", budget_amount: null, budget_type: "daily", spend: 690.4, results: 44 },
+  { id: "adgrp_NwInterest", ad_campaign_id: "adcamp_NwVipLeads", title: "Interest: sports betting, fantasy football", status: "active", optimization_goal: "conversions", budget_amount: null, budget_type: "daily", spend: 353.8, results: 19 },
+  { id: "adgrp_NwVisitors", ad_campaign_id: "adcamp_NwSeasonRetarget", title: "Site visitors 30d, no purchase", status: "active", optimization_goal: "conversions", budget_amount: null, budget_type: "daily", spend: 221.75, results: 11 },
+];
+const adsList = [
+  { id: "ad_NwKickoffA", ad_group_id: "adgrp_NwLookalike", title: "Kickoff — hit rate", status: "active", headlines: ["61% hit rate through Week 3"], descriptions: ["Daily picks, one Discord, cancel anytime."], call_to_action: "sign_up", destination_url: "https://whop.com/northwind-picks/vip-picks", creatives: [{ id: "file_NwPoster1" }], clicks: 2610, spend: 540.1 },
+  { id: "ad_NwKickoffB", ad_group_id: "adgrp_NwLookalike", title: "Kickoff — proof", status: "active", headlines: ["Every pick, graded in public"], descriptions: ["See the full record before you pay."], call_to_action: "learn_more", destination_url: "https://whop.com/northwind-picks/vip-picks", creatives: [{ id: "file_NwPoster2" }, { id: "file_NwPoster3" }], clicks: 1600, spend: 504.1 },
+  { id: "ad_NwRetarget", ad_group_id: "adgrp_NwVisitors", title: "Season pass — last chance", status: "active", headlines: ["Season Pass closes Sunday"], descriptions: ["One payment. Every pick until the Super Bowl."], call_to_action: "shop_now", destination_url: "https://whop.com/northwind-picks/season-pass", creatives: [{ id: "file_NwPoster4" }], clicks: 1140, spend: 221.75 },
+  { id: "ad_NwFreeRoom", ad_group_id: "adgrp_NwInterest", title: "Free room", status: "paused", headlines: ["Free picks room, no card"], descriptions: ["Join 4,100 members."], call_to_action: "sign_up", destination_url: "https://whop.com/northwind-picks/free-picks", creatives: [], clicks: 3900, spend: 388 },
+];
+const audiences = [
+  { id: "aud_NwBuyers90", title: "Buyers · last 90 days", size: 1153, created_at: iso(30 * DAY) },
+  { id: "aud_NwVisitorsNoBuy", title: "Site visitors · no purchase · 30d", size: 8620, created_at: iso(10 * DAY) },
+];
+const socialAccounts = [{ id: "soc_NwFacebook", platform: "facebook", name: "Northwind Picks", username: "northwindpicks", verified: true, scopes: ["advertise"] }];
+const bounties = [
+  { id: "bnty_NwClips1", title: "Clip our best picks of the week", status: "open", bounty_type: "workforce", business_goal_type: "clipping", currency: "usd", gross_reward_amount: 500, gross_paid_out_amount: 210, submissions_count: 37, accepted_submissions_count: 21, frequency: "weekly", publish_at: null, created_at: iso(6 * DAY) },
+  { id: "bnty_NwUgc2", title: "Record a 30s reaction to a winning parlay", status: "open", bounty_type: "workforce", business_goal_type: "ugc_content", currency: "usd", gross_reward_amount: 300, gross_paid_out_amount: 60, submissions_count: 9, accepted_submissions_count: 4, frequency: "once", publish_at: null, created_at: iso(3 * DAY) },
+  { id: "bnty_NwGrowth3", title: "Follow @northwindpicks and share the free room", status: "completed", bounty_type: "workforce", business_goal_type: "owned_account_growth", currency: "usd", gross_reward_amount: 150, gross_paid_out_amount: 150, submissions_count: 150, accepted_submissions_count: 150, frequency: "once", publish_at: null, created_at: iso(40 * DAY) },
+];
+const referred = [
+  { id: "coma_NwRefTrend", title: "Trendline Trades", status: "active", referred_at: iso(80 * DAY), total_earnings: 1240.5 },
+  { id: "coma_NwRefClip", title: "Clipfarm Studio", status: "active", referred_at: iso(22 * DAY), total_earnings: 96.2 },
+];
+
 function withPage<T>(data: T[]) {
   return { data, page_info: { start_cursor: null, end_cursor: null, has_next_page: false, has_previous_page: false } };
 }
@@ -248,6 +285,28 @@ export function demoResolve(args: string[]): unknown {
       return withPage(apps);
     case "recommended-actions list":
       return withPage(actions);
+    case "ad-campaigns list": {
+      const st = flag(args, "--status");
+      return withPage(campaigns.filter((c) => !st || c.status === st));
+    }
+    case "ad-groups list":
+      return withPage(adGroups);
+    case "ads list":
+      return withPage(adsList);
+    case "audiences list":
+      return withPage(audiences);
+    case "social-accounts list":
+      return withPage(socialAccounts);
+    case "bounties list":
+      return withPage(bounties);
+    case "partners list":
+      return withPage(referred);
+    case "partners leaderboard":
+      return { data: [{ rank: 1, user: { username: "growthwithgabe" }, earnings: 48210 }, { rank: 2, user: { username: "clipqueen" }, earnings: 31980 }, { rank: 3, user: { username: "sam.builds" }, earnings: 22440 }, { rank: 118, user: { username: "northwindpicks" }, earnings: 1336.7 }] };
+    case "media generate":
+      return { id: `media_Nw${Date.now().toString(36)}`, status: "completed", type: flag(args, "--type") ?? "image", prompt: flag(args, "--prompt") ?? "", file: { id: `file_Nw${Date.now().toString(36)}`, url: DEMO_POSTER, content_type: "image/svg+xml" }, cost: flag(args, "--type") === "video" ? "1.20" : "0.08", model: "demo", created_at: new Date().toISOString() };
+    case "media get":
+      return { id: args[2], status: "completed", type: "image", file: { id: "file_NwDemo", url: DEMO_POSTER }, cost: "0.08" };
     case "disputes list":
       return withPage([
         { id: "dis_Nw1xQ", status: "needs_response", reason: "product_not_received", amount: usd(49), created_at: iso(1.2 * DAY), due_by: iso(-5 * DAY), user: { username: "benny_locks" } },

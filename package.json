@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.3.0",
   "type": "module",
-  "description": "Whop Desktop — unofficial personal-use macOS wrapper for whop.com with a hidden title bar, tray icon, global hotkey and CSS tweaks (not affiliated with Whop).",
+  "description": "Whop Desktop \u2014 unofficial personal-use macOS wrapper for whop.com with a hidden title bar, tray icon, global hotkey and CSS tweaks (not affiliated with Whop).",
   "author": "srikarsunchu",
   "license": "MIT",
   "repository": "github:srikarsunchu/whop-desktop",
@@ -13,7 +13,8 @@
     "preview": "vite preview",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
-    "tauri:build": "tauri build"
+    "tauri:build": "tauri build",
+    "test:media": "node scripts/test-media.mjs"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.11.3",

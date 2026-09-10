@@ -1,9 +1,8 @@
-import { Badge, Button, Callout, Code, IconButton, Kbd, SegmentedControl, Switch, Text, Tooltip, toast } from "frosted-ui";
-import { ArrowUpIcon, CheckIcon, ChevronDownIcon, ChevronRightIcon, CopyIcon, Cross2Icon, ExclamationTriangleIcon, ReloadIcon, StopIcon } from "@radix-ui/react-icons";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Badge, Button, Callout, Code, IconButton, SegmentedControl, Switch, Text, Tooltip, toast } from "frosted-ui";
+import { ArrowUpIcon, CheckIcon, ChevronDownIcon, ChevronRightIcon, CopyIcon, Cross2Icon, ExclamationTriangleIcon, ReloadIcon, StopIcon, ChatBubbleIcon, LockClosedIcon, LightningBoltIcon, BarChartIcon, PersonIcon, ArrowRightIcon } from "@radix-ui/react-icons";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Markdown, JsonText } from "../components/Markdown";
 import { PageHeader } from "../components/Panel";
-import { BizAvatar } from "../components/BizAvatar";
 import { claudeAvailable, startRun, syncDemoFixtures, SUGGESTIONS, type ChatMessage, type Conversation, type RunHandle, type ToolCall } from "../lib/assistant";
 import { useAccount } from "../lib/whop";
 import { Terminal } from "./Terminal";
@@ -30,6 +29,9 @@ export function Assistant({ seed, onSeedConsumed, chatSeed, onChatSeedConsumed }
   const [input, setInput] = useState("");
   const [allowWrites, setAllowWrites] = useState(() => localStorage.getItem(LS_WRITES) === "1");
   const [run, setRun] = useState<RunHandle | null>(null);
+  const sendingRef = useRef(false);
+  const followRef = useRef(true);
+  const busy = conv.messages.some((m) => m.streaming);
   const [claudePath, setClaudePath] = useState<string | null | undefined>(undefined);
   const listRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
@@ -61,7 +63,7 @@ export function Assistant({ seed, onSeedConsumed, chatSeed, onChatSeedConsumed }
     if (account?.demo) syncDemoFixtures();
   }, [account?.demo]);
   useEffect(() => {
-    listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" });
+    if (followRef.current && listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight;
   }, [conv.messages]);
 
   const update = useCallback((id: string, fn: (m: ChatMessage) => ChatMessage) => {
@@ -71,7 +73,9 @@ export function Assistant({ seed, onSeedConsumed, chatSeed, onChatSeedConsumed }
   const send = useCallback(
     async (text: string) => {
       const prompt = text.trim();
-      if (!prompt || run) return;
+      if (!prompt || run || sendingRef.current || busy) return;
+      sendingRef.current = true;
+      followRef.current = true;
       setInput("");
       const userMsg: ChatMessage = { id: uid(), role: "user", blocks: [{ type: "text", text: prompt }], createdAt: Date.now() };
       const asstId = uid();
@@ -132,9 +136,11 @@ export function Assistant({ seed, onSeedConsumed, chatSeed, onChatSeedConsumed }
       } catch (e) {
         setRun(null);
         update(asstId, (m) => ({ ...m, streaming: false, error: String(e) }));
+      } finally {
+        sendingRef.current = false;
       }
     },
-    [run, conv.sessionId, account, allowWrites, update],
+    [run, busy, conv.sessionId, account, allowWrites, update],
   );
 
   const stop = async () => {
@@ -153,19 +159,19 @@ export function Assistant({ seed, onSeedConsumed, chatSeed, onChatSeedConsumed }
   };
 
   const empty = conv.messages.length === 0;
-  const lastCost = useMemo(() => [...conv.messages].reverse().find((m) => m.meta?.costUsd != null)?.meta?.costUsd, [conv.messages]);
 
   return (
-    <div className="stack" style={{ height: "100%" }}>
+    <div className="assistant-page">
       <PageHeader
         title="Assistant"
-        subtitle={mode === "chat" ? (account?.demo ? "Claude, operating the demo business through the whop CLI." : `Claude, operating ${account?.title ?? "your business"} through the whop CLI.`) : "Raw whop CLI. Every command hits production."}
+        subtitle={mode === "chat" ? `${account?.title ?? "Your business"} · powered by Claude` : account?.demo ? "Demo workspace · simulated commands" : "Your Whop command line"}
         actions={
           <>
             {mode === "chat" && (
-              <Tooltip content={allowWrites ? "Claude may run commands that change data after you confirm in chat" : "Commands that change data are blocked"}>
-                <label className="switch-row">
-                  <Switch size="1" checked={allowWrites} onCheckedChange={(v: boolean) => setAllowWrites(v)} color={allowWrites ? "amber" : undefined} />
+              <Tooltip content={allowWrites ? "Commands that change data are allowed for this session" : "Commands that change data are blocked"}>
+                <label className="switch-row" data-enabled={allowWrites}>
+                  <LockClosedIcon />
+                  <Switch size="1" aria-label="Allow writes" disabled={busy} checked={allowWrites} onCheckedChange={(v: boolean) => setAllowWrites(v)} color={allowWrites ? "amber" : undefined} />
                   <Text size="1" color={allowWrites ? "amber" : "gray"}>
                     Allow writes
                   </Text>
@@ -180,7 +186,7 @@ export function Assistant({ seed, onSeedConsumed, chatSeed, onChatSeedConsumed }
             </SegmentedControl.Root>
             {mode === "chat" && (
               <Tooltip content="New conversation">
-                <IconButton size="1" variant="ghost" color="gray" onClick={reset} aria-label="New conversation">
+                <IconButton size="1" variant="ghost" color="gray" onClick={reset} disabled={busy} aria-label="New conversation">
                   <ReloadIcon />
                 </IconButton>
               </Tooltip>
@@ -204,43 +210,42 @@ export function Assistant({ seed, onSeedConsumed, chatSeed, onChatSeedConsumed }
               </Callout.Description>
             </Callout.Root>
           )}
-          <div className="chat-list" ref={listRef}>
+          <div className="chat-list" ref={listRef} onScroll={() => { const el = listRef.current; if (el) followRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80; }}>
             {empty ? (
               <div className="chat-empty">
-                <BizAvatar account={account} size="2" />
-                <Text size="4" weight="medium" style={{ display: "block", marginTop: 12 }}>
-                  What do you want to know about {account?.title ?? "your business"}?
-                </Text>
-                <Text size="2" color="gray" style={{ display: "block", marginTop: 4, maxWidth: 520 }}>
-                  Claude reads your Whop through the CLI and shows every command it runs. Writes stay blocked until you allow them.
-                </Text>
+                <span className="assistant-mark assistant-mark-large"><ChatBubbleIcon /></span>
+                <Text size="6" weight="medium" className="chat-empty-title">What’s happening in your business?</Text>
+                <Text size="2" color="gray" className="chat-empty-description">Ask a question. Claude checks your Whop data and shows its work.</Text>
                 <div className="chat-suggestions">
-                  {SUGGESTIONS.map((s) => (
-                    <Button key={s} size="1" variant="surface" color="gray" onClick={() => send(s)}>
-                      {s}
-                    </Button>
-                  ))}
+                  {[
+                    { title: "Understand revenue", description: "Compare this week with last", prompt: SUGGESTIONS[0], icon: BarChartIcon },
+                    { title: "Spot members at risk", description: "Find failed renewals", prompt: SUGGESTIONS[1], icon: PersonIcon },
+                    { title: "Review your ads", description: "See what’s performing", prompt: SUGGESTIONS[6], icon: LightningBoltIcon },
+                  ].map(({ title, description, prompt, icon: Icon }) => <button className="chat-suggestion" type="button" key={title} onClick={() => { setInput(prompt); taRef.current?.focus(); }}>
+                    <Icon /><strong>{title}</strong><span>{description}</span><ArrowRightIcon className="suggestion-arrow" />
+                  </button>)}
                 </div>
               </div>
             ) : (
-              conv.messages.map((m) => <Message key={m.id} m={m} account={account} />)
+              conv.messages.map((m) => <Message key={m.id} m={m} />)
             )}
           </div>
-          <div className="chat-composer">
+          <div className="chat-composer" data-busy={busy}>
             <textarea
               ref={taRef}
               className="chat-input"
-              placeholder={run ? "Claude is working…" : "Ask about revenue, members, products, payouts… (↵ to send, ⇧↵ for a new line)"}
+              aria-label="Message Claude"
+              placeholder={busy ? "Claude is working…" : "Ask about your business…"}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={onKey}
               rows={Math.min(6, Math.max(1, input.split("\n").length))}
-              disabled={claudePath === null}
+              disabled={claudePath === null || busy}
               autoFocus
             />
             <div className="chat-composer-bar">
               <Text size="1" color="gray">
-                {run ? "running whop commands as needed" : lastCost != null ? `last reply $${lastCost.toFixed(3)} · session kept` : conv.sessionId ? "session kept" : "new session"}
+                {busy ? "Checking your business…" : "Claude · Whop CLI"}
                 {allowWrites && (
                   <>
                     {" · "}
@@ -250,24 +255,25 @@ export function Assistant({ seed, onSeedConsumed, chatSeed, onChatSeedConsumed }
                   </>
                 )}
               </Text>
-              {run ? (
-                <Button size="1" variant="soft" color="gray" onClick={stop}>
+              {busy ? (
+                <Button size="1" variant="soft" color="gray" onClick={stop} disabled={!run}>
                   <StopIcon /> Stop
                 </Button>
               ) : (
                 <Button size="1" variant="classic" onClick={() => send(input)} disabled={!input.trim() || claudePath === null}>
-                  <ArrowUpIcon /> Send <Kbd size="1">↵</Kbd>
+                  <ArrowUpIcon /> Send
                 </Button>
               )}
             </div>
           </div>
+        <div className="chat-composer-note"><span>{allowWrites ? "Writes enabled" : "Read-only until you allow writes"}</span><span>↵ Send · ⇧↵ New line</span></div>
         </div>
       )}
     </div>
   );
 }
 
-function Message({ m, account }: { m: ChatMessage; account: ReturnType<typeof useAccount>["account"] }) {
+function Message({ m }: { m: ChatMessage }) {
   if (m.role === "user") {
     return (
       <div className="msg msg-user">
@@ -281,13 +287,12 @@ function Message({ m, account }: { m: ChatMessage; account: ReturnType<typeof us
   return (
     <div className="msg msg-asst">
       <div className="msg-avatar">
-        <BizAvatar account={account} size="1" />
+        <span className="assistant-mark assistant-mark-small"><ChatBubbleIcon /></span>
       </div>
       <div className="msg-body">
+        <div className="assistant-author"><Text size="2" weight="medium">Claude</Text><Text size="1" color="gray">{m.streaming ? "Working" : "Assistant"}</Text></div>
         {nothingYet && m.streaming && (
-          <Text size="2" color="gray">
-            Thinking…
-          </Text>
+          <div className="thinking" role="status"><span /><span /><span /><Text size="2" color="gray">Checking your business</Text></div>
         )}
         {m.blocks.map((b, i) => (b.type === "text" ? <Markdown key={i} text={b.text} /> : <ToolCard key={b.call.id} call={b.call} />))}
         {m.error && (
@@ -312,8 +317,7 @@ function Message({ m, account }: { m: ChatMessage; account: ReturnType<typeof us
 function ToolCard({ call }: { call: ToolCall }) {
   const [open, setOpen] = useState(false);
   const lines = (call.output ?? "").split("\n");
-  const long = lines.length > 14 || (call.output ?? "").length > 1500;
-  const shown = open || !long ? call.output ?? "" : lines.slice(0, 12).join("\n") + "\n…";
+  const shown = call.output ?? "";
   const isWrite = /\b(create|delete|update|cancel|pause|resume|transfer|deploy|publish|unpublish|payouts create)\b/.test(call.command);
   const blocked = /WRITE_BLOCKED/.test(call.output ?? "");
   const copy = async () => {
@@ -325,9 +329,9 @@ function ToolCard({ call }: { call: ToolCall }) {
     }
   };
   return (
-    <div className="tool" data-error={!!call.isError && !blocked} data-blocked={blocked}>
+    <div className="tool" data-running={!call.done} data-error={!!call.isError && !blocked} data-blocked={blocked}>
       <div className="tool-head">
-        <button className="tool-toggle" type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
+        <button className="tool-toggle" type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-label={open ? "Hide command output" : "Show command output"}>
           {open ? <ChevronDownIcon /> : <ChevronRightIcon />}
         </button>
         <Code variant="ghost" size="1" color="gray" className="tool-cmd" title={call.command}>
@@ -361,14 +365,14 @@ function ToolCard({ call }: { call: ToolCall }) {
           <CopyIcon />
         </IconButton>
       </div>
-      {call.done && call.output && (open || !long) && (
+      {call.done && call.output && open && (
         <pre className="tool-out">
           <JsonText text={shown} />
         </pre>
       )}
-      {call.done && call.output && long && !open && (
+      {call.done && call.output && !open && (
         <button className="tool-more" type="button" onClick={() => setOpen(true)}>
-          Show {lines.length} lines
+          {blocked ? "Write blocked · inspect details" : call.isError ? "Command failed · inspect details" : `${lines.length} lines returned · inspect output`} <ChevronRightIcon />
         </button>
       )}
     </div>

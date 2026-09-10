@@ -189,14 +189,14 @@ export function App() {
       page = <AccountView runInTerminal={runInTerminal} />;
       break;
     default:
-      page = <Overview runInTerminal={runInTerminal} onNavigate={setView} />;
+      page = <Overview runInTerminal={runInTerminal} onNavigate={setView} ask={ask} />;
   }
 
   return (
     <AccountContext.Provider value={ctx}>
       <div className="app">
         <Sidebar view={view} onNavigate={setView} onOpenPalette={() => setPaletteOpen(true)} />
-        <main className="content">
+        <main className={`content${view === "assistant" ? " content-assistant" : ""}`}>
           <div className="content-drag" />
           <div className="page" key={view + (account?.id ?? "")}>
             {page}

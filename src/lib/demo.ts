@@ -23,30 +23,31 @@ function rng(seed: number) {
 }
 
 function series(metric: string, from: number, to: number): { timestamp: number; value: number }[] {
-  const r = rng(metric.length * 7919 + 17);
   const out: { timestamp: number; value: number }[] = [];
   for (let t = from; t <= to; t += DAY) {
+    const r = rng((metric.length * 7919) ^ Math.imul(Math.floor(t / DAY), 2654435761));
     const dow = new Date(t * 1000).getUTCDay();
     const weekend = dow === 0 || dow === 6 ? 1.35 : 1;
-    const i = (t - from) / DAY;
+    // A given day must have the same value in the 7, 30, and 90 day views.
+    const i = (t - todayUtc()) / DAY + 29;
     let v: number;
     switch (metric) {
       case "net_revenue":
       case "gross_revenue":
-        v = (820 + i * 14 + r() * 900) * weekend;
+        v = (Math.max(300, 820 + i * 14) + r() * 900) * weekend;
         break;
       case "new_memberships":
         v = Math.round((6 + r() * 11) * weekend);
         break;
       case "active_memberships":
       case "paid_active_members":
-        v = 1180 + Math.round(i * 3.4 + r() * 6);
+        v = t === todayUtc() ? 1211 : 1211 + Math.round((i - 29) * 3.4 + r() * 6);
         break;
       case "new_users":
         v = Math.round((14 + r() * 22) * weekend);
         break;
       case "account_balance":
-        v = 12000 + i * 240 + r() * 900 - (i % 7 === 6 ? 4200 : 0);
+        v = t === todayUtc() ? 18420.55 : Math.max(0, 12000 + i * 240 + r() * 900 - (i % 7 === 6 ? 4200 : 0));
         break;
       case "ad_spend":
         v = (30 + r() * 45) * weekend;
@@ -93,7 +94,7 @@ function memberships() {
       id: `mem_Nw${uid.slice(5, 11)}`,
       status: statuses[i],
       created_at: iso((3 + i * 9) * DAY),
-      renewal_period_end: p.plan.plan_type === "renewal" ? iso(-(4 + i) * DAY) : null,
+      renewal_period_end: p.plan.plan_type === "renewal" ? iso((statuses[i] === "past_due" ? 2 : -(4 + i)) * DAY) : null,
       cancel_at_period_end: statuses[i] === "canceling",
       product: { id: p.id, title: p.title },
       plan: { id: p.plan.id, title: p.plan.title, plan_type: p.plan.plan_type, renewal_price: p.plan.renewal_price, initial_price: p.plan.initial_price },
@@ -204,12 +205,12 @@ const apps = [
 ];
 
 const actions = [
-  { id: "rac_NwWinback", title: "Win back 14 past-due members", description: "Send a 20% promo to memberships that failed renewal this week.", category: "retention" },
+  { id: "rac_NwWinback", title: "Follow up on a failed renewal", description: "One membership is past due. Review it before reaching out.", category: "retention" },
   { id: "rac_NwPublish", title: "Publish Model Sheet Access", description: "It has 58 members but is hidden from your storefront.", category: "growth" },
   { id: "rac_NwPayout", title: "Schedule weekly payouts", description: "$18,420.55 is available. Turn on automatic payouts every Friday.", category: "money" },
 ];
 
-const DEMO_POSTER =
+export const DEMO_POSTER =
   "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDI0IDEwMjQiPjxkZWZzPjxsaW5lYXJHcmFkaWVudCBpZD0iZyIgeDE9IjAiIHkxPSIwIiB4Mj0iMSIgeTI9IjEiPjxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iIzBmMmExYyIvPjxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iIzA2MjAxMyIvPjwvbGluZWFyR3JhZGllbnQ+PHJhZGlhbEdyYWRpZW50IGlkPSJyIiBjeD0iMC43IiBjeT0iMC4zIiByPSIwLjYiPjxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iIzNkZDY4YyIgc3RvcC1vcGFjaXR5PSIwLjU1Ii8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjM2RkNjhjIiBzdG9wLW9wYWNpdHk9IjAiLz48L3JhZGlhbEdyYWRpZW50PjwvZGVmcz48cmVjdCB3aWR0aD0iMTAyNCIgaGVpZ2h0PSIxMDI0IiBmaWxsPSJ1cmwoI2cpIi8+PHJlY3Qgd2lkdGg9IjEwMjQiIGhlaWdodD0iMTAyNCIgZmlsbD0idXJsKCNyKSIvPjxjaXJjbGUgY3g9IjUxMiIgY3k9IjQ3MCIgcj0iMjMwIiBmaWxsPSJub25lIiBzdHJva2U9IiMzZGQ2OGMiIHN0cm9rZS13aWR0aD0iMjgiLz48Y2lyY2xlIGN4PSI1MTIiIGN5PSI0NzAiIHI9IjEyMCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjM2RkNjhjIiBzdHJva2Utd2lkdGg9IjI4Ii8+PGNpcmNsZSBjeD0iNTEyIiBjeT0iNDcwIiByPSIzNCIgZmlsbD0iIzNkZDY4YyIvPjx0ZXh0IHg9IjUxMiIgeT0iODYwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0iSW50ZXIsIEhlbHZldGljYSwgQXJpYWwsIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iNzIiIGZvbnQtd2VpZ2h0PSI2MDAiIGZpbGw9IiNmMmYyZjAiPlZJUCBQSUNLUzwvdGV4dD48dGV4dCB4PSI1MTIiIHk9IjkzMCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC1mYW1pbHk9IkludGVyLCBIZWx2ZXRpY2EsIEFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjM0IiBmaWxsPSIjYjRiNGI0Ij5TZWFzb24gcGFzcyDCtyA2MSUgaGl0IHJhdGUgwrcgTm9ydGh3aW5kIFBpY2tzPC90ZXh0Pjwvc3ZnPg==";
 
 const campaigns = [
@@ -303,10 +304,13 @@ export function demoResolve(args: string[]): unknown {
       return withPage(referred);
     case "partners leaderboard":
       return { data: [{ rank: 1, user: { username: "growthwithgabe" }, earnings: 48210 }, { rank: 2, user: { username: "clipqueen" }, earnings: 31980 }, { rank: 3, user: { username: "sam.builds" }, earnings: 22440 }, { rank: 118, user: { username: "northwindpicks" }, earnings: 1336.7 }] };
-    case "media generate":
-      return { id: `media_Nw${Date.now().toString(36)}`, status: "completed", type: flag(args, "--type") ?? "image", prompt: flag(args, "--prompt") ?? "", file: { id: `file_Nw${Date.now().toString(36)}`, url: DEMO_POSTER, content_type: "image/svg+xml" }, cost: flag(args, "--type") === "video" ? "1.20" : "0.08", model: "demo", created_at: new Date().toISOString() };
+    case "media generate": {
+      const type = flag(args, "--type") === "video" ? "video" : "image";
+      const id = `media_Nw_${type}_${Date.now().toString(36)}`;
+      return demoMedia(type, id, flag(args, "--prompt") ?? "");
+    }
     case "media get":
-      return { id: args[2], status: "completed", type: "image", file: { id: "file_NwDemo", url: DEMO_POSTER }, cost: "0.08" };
+      return demoMedia(args[2]?.includes("_video_") ? "video" : "image", args[2], "");
     case "disputes list":
       return withPage([
         { id: "dis_Nw1xQ", status: "needs_response", reason: "product_not_received", amount: usd(49), created_at: iso(1.2 * DAY), due_by: iso(-5 * DAY), user: { username: "benny_locks" } },
@@ -318,4 +322,10 @@ export function demoResolve(args: string[]): unknown {
     default:
       throw { code: "DEMO", message: `No demo data for \`whop ${key}\`. Switch to a real business to run it.` };
   }
+}
+
+/** Bundled, labeled samples. Never represented as prompt-generated work. */
+export const DEMO_VIDEO = "/demo/studio-sample.mp4";
+function demoMedia(type: "image" | "video", id: string, prompt: string) {
+  return { id, status: "completed", type, prompt, file: { id: `file_Nw_${type}`, url: type === "video" ? DEMO_VIDEO : DEMO_POSTER, content_type: type === "video" ? "video/mp4" : "image/svg+xml" }, cost: "0.00", model: "demo-sample", created_at: new Date().toISOString() };
 }

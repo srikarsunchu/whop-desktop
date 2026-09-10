@@ -37,7 +37,7 @@ export const NAV: { id: ViewId; label: string; icon: React.ComponentType<{ class
 ];
 
 export function Sidebar({ view, onNavigate, onOpenPalette }: { view: ViewId; onNavigate: (v: ViewId) => void; onOpenPalette: () => void }) {
-  const { account, accounts, setAccount, cliVersion, loggedIn, profile, cliPath } = useAccount();
+  const { account, accounts, setAccount, cliVersion, loggedIn, cliPath } = useAccount();
   const version = cliVersion?.replace(/^whop\s*/i, "") ?? null;
 
   return (
@@ -54,7 +54,7 @@ export function Sidebar({ view, onNavigate, onOpenPalette }: { view: ViewId; onN
                   {account?.title ?? "Choose a business"}
                 </Text>
                 <Text size="1" color="gray">
-                  {account?.demo ? "Demo data" : account?.id ?? (loggedIn === false ? "Not signed in" : "Loading…")}
+                  {account?.demo ? "Demo data" : (account ? "Business workspace" : loggedIn === false ? "Not signed in" : "Loading…")}
                 </Text>
               </span>
               <ChevronDownIcon />
@@ -104,21 +104,29 @@ export function Sidebar({ view, onNavigate, onOpenPalette }: { view: ViewId; onN
             <Kbd size="1">⌘K</Kbd>
           </span>
         </button>
-        {NAV.map(({ id, label, icon: Icon }) => (
-          <button key={id} className="nav-item" type="button" data-active={view === id} onClick={() => onNavigate(id)} title={`${label} ⌘${NAV.findIndex((n) => n.id === id) + 1}`}>
-            <Icon />
-            {label}
-          </button>
-        ))}
+        <button className="nav-item nav-assistant" type="button" data-active={view === "assistant"} aria-current={view === "assistant" ? "page" : undefined} onClick={() => onNavigate("assistant")}>
+          <ChatBubbleIcon />Assistant<span className="nav-assistant-label">Claude</span>
+        </button>
+        {[
+          { label: "Business", ids: ["overview", "money", "members", "products", "people"] },
+          { label: "Grow", ids: ["ads", "studio", "growth"] },
+          { label: "Build", ids: ["apps"] },
+        ].map((group) => <div className="nav-group" key={group.label}>
+          <Text size="1" color="gray" className="sidebar-section">{group.label}</Text>
+          {group.ids.map((id) => {
+            const item = NAV.find((n) => n.id === id)!;
+            const Icon = item.icon;
+            const shortcut = NAV.indexOf(item) + 1;
+            return <button key={id} className="nav-item" type="button" data-active={view === id} aria-current={view === id ? "page" : undefined} onClick={() => onNavigate(item.id)} title={`${item.label}${shortcut <= 9 ? ` ⌘${shortcut}` : ""}`}><Icon />{item.label}</button>;
+          })}
+        </div>)}
       </nav>
 
       <div className="sidebar-footer">
-        <Text size="1" color="gray">
-          <span className="live-dot" data-off={loggedIn !== true} />
-          {loggedIn === true ? `Signed in as ${profile ?? "you"}` : loggedIn === false ? "Whop CLI not signed in" : "Checking Whop CLI…"}
-        </Text>
-        <Text size="1" color="gray" className="mono" title={cliPath ?? undefined}>
-          {cliPath ? `whop ${version ?? ""}`.trim() : "whop CLI not found"}
+        <button className="nav-item" type="button" data-active={view === "account"} aria-current={view === "account" ? "page" : undefined} onClick={() => onNavigate("account")}><GearIcon />Account</button>
+        <Text size="1" color="gray" className="connection-status" title={cliPath ? `whop ${version ?? ""} · ${cliPath}` : undefined}>
+          <span className="live-dot" data-off={!account?.demo && loggedIn !== true} />
+          {account?.demo ? "Demo workspace" : loggedIn === true ? "Whop CLI connected" : loggedIn === false ? "CLI not connected" : "Connecting…"}
         </Text>
       </div>
     </aside>

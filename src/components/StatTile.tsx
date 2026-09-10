@@ -26,7 +26,7 @@ export function StatTile({
 }) {
   const good = delta == null ? null : (delta >= 0) === upIsGood;
   return (
-    <Card size="3">
+    <Card size="3" className="stat-card">
       <div className="stat">
         <div className="stat-top">
           <Text size="1" color="gray">
@@ -34,7 +34,7 @@ export function StatTile({
           </Text>
           {spark && spark.length > 1 && <Sparkline values={spark} title={sparkLabel} />}
         </div>
-        <Heading size="7" weight="medium" className="stat-value">
+        <Heading size="6" weight="medium" className="stat-value">
           {value == null ? <span style={{ color: "var(--gray-8)" }}>{loading ? "…" : "—"}</span> : new Intl.NumberFormat("en-US", format ?? { maximumFractionDigits: 0 }).format(value)}
         </Heading>
         <div className="stat-row">
@@ -71,7 +71,7 @@ export function Sparkline({ values, title, width = 64, height = 22 }: { values: 
   return (
     <svg className="spark" width={width} height={height} viewBox={`0 0 ${width} ${height}`} role="img" aria-label={title ?? "trend"}>
       <title>{title ?? "trend"}</title>
-      <path d={d} className="spark-line" />
+      <path d={d} className="spark-line" pathLength={1} />
       <circle cx={x(last)} cy={y(values[last])} r={2.5} className="spark-dot" />
     </svg>
   );

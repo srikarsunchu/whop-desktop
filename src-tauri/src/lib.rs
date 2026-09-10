@@ -559,15 +559,20 @@ fn run_whop(args: &[String]) -> Result<RawOutput, String> {
 }
 
 #[tauri::command]
-fn whop_raw(args: Vec<String>) -> Result<RawOutput, String> {
-    dlog(&format!("whop raw {}", args.first().cloned().unwrap_or_default()));
-    run_whop(&args)
+async fn whop_raw(args: Vec<String>) -> Result<RawOutput, String> {
+    tauri::async_runtime::spawn_blocking(move || run_whop(&args))
+        .await.map_err(|e| format!("CLI task failed: {e}"))?
 }
 
 /// Runs a CLI command with `--format json` and returns the parsed JSON. CLI
 /// error envelopes (`{code, message}`) are passed through for the UI to show.
 #[tauri::command]
-fn whop_json(args: Vec<String>) -> Result<serde_json::Value, String> {
+async fn whop_json(args: Vec<String>) -> Result<serde_json::Value, String> {
+    tauri::async_runtime::spawn_blocking(move || run_whop_json(args))
+        .await.map_err(|e| format!("CLI task failed: {e}"))?
+}
+
+fn run_whop_json(args: Vec<String>) -> Result<serde_json::Value, String> {
     dlog(&format!(
         "whop json {} {}",
         args.first().cloned().unwrap_or_default(),

@@ -21,18 +21,14 @@ export function Panel({
   size?: "1" | "2" | "3" | "4";
 }) {
   return (
-    <Card size={size}>
+    <Card size={size} className="panel">
       {(title || query) && (
         <div className="panel-head">
-          <div style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: 4 }}>
-            {title && (
-              <Heading size="3" weight="medium">
-                {title}
-              </Heading>
-            )}
+          {title && <Heading size="3" weight="medium" className="panel-title">{title}</Heading>}
+          <div className="panel-head-actions">
+            {actions}
             {query && <CommandStrip command={query.command} updatedAt={query.updatedAt} loading={query.loading} onRefresh={query.refresh} onRun={onRun} />}
           </div>
-          {actions && <div className="panel-head-actions">{actions}</div>}
         </div>
       )}
       {children}

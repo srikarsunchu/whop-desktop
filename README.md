@@ -95,7 +95,7 @@ The app looks for `whop` in `$WHOP_BIN`, `PATH`, `~/.local/bin`,
 
 Visit [Whop Desktop](https://whop-desktop.sunchusrikar.chatgpt.site) for the product demo and download status.
 
-The first public Mac download is being prepared for Developer ID signing and Apple notarization. A DMG is not available yet; the page links to releases once one is ready. The initial binary targets Apple Silicon (M1 and newer), macOS 11+.
+[Download the Mac preview](https://github.com/srikarsunchu/whop-desktop/releases/download/v0.4.0-preview.1/Whop-Desktop-0.4.0-Apple-Silicon.dmg). The app is signed with Developer ID and notarized by Apple, with a stapled ticket. The signed DMG includes an Applications shortcut. Requires Apple Silicon (M1 and newer) and macOS 11+.
 
 On first launch, choose **Explore the demo** to open the fictional Northwind Picks business without signing in. **Connect my business** explains Whop CLI installation and sign-in and checks the existing local session. The Assistant separately requires Claude Code installed and signed in. Studio's demo previews are labeled samples, not generated results.
 
@@ -145,7 +145,7 @@ WHOP_DESKTOP_ACCOUNT=biz_demoNorthwind WHOP_DESKTOP_VIEW=overview \
   passkeys, so the injected script removes WebAuthn on `accounts.google.com`
   to force the password flow. If Google still offers a passkey, click "Try
   another way".
-- Unsigned builds only.
+- The published preview supports Apple Silicon only; Intel is not included.
 
 ## Files
 

@@ -2,7 +2,7 @@
 
 Live at https://srikar-desktop.whop.site/.
 
-The landing page and demo are hosted on Whop using TanStack Start. The Mac download remains disabled until a signed, notarized release is ready.
+The landing page and demo are hosted on Whop using TanStack Start. The Mac download links to the signed, notarized 0.4.0 preview on GitHub Releases.
 
 ## Develop
 

@@ -55,30 +55,32 @@ export function Sidebar({ view, onNavigate, onOpenPalette }: { view: ViewId; onN
             </button>
           </DropdownMenu.Trigger>
           <DropdownMenu.Content size="1" style={{ minWidth: 216 }}>
-            <DropdownMenu.GroupLabel>Businesses</DropdownMenu.GroupLabel>
-            {accounts
-              .filter((a) => !a.demo)
-              .map((a) => (
-                <DropdownMenu.Item key={a.id} onClick={() => setAccount(a)}>
-                  <Avatar size="1" shape="square" color="orange" fallback={a.title.charAt(0).toUpperCase()} />
-                  <span style={{ flex: 1 }}>{a.title}</span>
-                  {account?.id === a.id && <CheckIcon />}
-                </DropdownMenu.Item>
-              ))}
-            {accounts.filter((a) => !a.demo).length === 0 && (
-              <DropdownMenu.Item disabled>No businesses. Run whop login.</DropdownMenu.Item>
-            )}
+            <DropdownMenu.Group>
+              <DropdownMenu.GroupLabel>Businesses</DropdownMenu.GroupLabel>
+              {accounts
+                .filter((a) => !a.demo)
+                .map((a) => (
+                  <DropdownMenu.Item key={a.id} onClick={() => setAccount(a)}>
+                    <Avatar size="1" shape="square" color="orange" fallback={a.title.charAt(0).toUpperCase()} />
+                    <span style={{ flex: 1 }}>{a.title}</span>
+                    {account?.id === a.id && <CheckIcon />}
+                  </DropdownMenu.Item>
+                ))}
+              {accounts.filter((a) => !a.demo).length === 0 && <DropdownMenu.Item disabled>No businesses. Run whop login.</DropdownMenu.Item>}
+            </DropdownMenu.Group>
             <DropdownMenu.Separator />
-            <DropdownMenu.GroupLabel>Demo</DropdownMenu.GroupLabel>
-            {accounts
-              .filter((a) => a.demo)
-              .map((a) => (
-                <DropdownMenu.Item key={a.id} onClick={() => setAccount(a)}>
-                  <Avatar size="1" shape="square" color="gray" fallback={a.title.charAt(0)} />
-                  <span style={{ flex: 1 }}>{a.title}</span>
-                  {account?.id === a.id && <CheckIcon />}
-                </DropdownMenu.Item>
-              ))}
+            <DropdownMenu.Group>
+              <DropdownMenu.GroupLabel>Demo</DropdownMenu.GroupLabel>
+              {accounts
+                .filter((a) => a.demo)
+                .map((a) => (
+                  <DropdownMenu.Item key={a.id} onClick={() => setAccount(a)}>
+                    <Avatar size="1" shape="square" color="gray" fallback={a.title.charAt(0)} />
+                    <span style={{ flex: 1 }}>{a.title}</span>
+                    {account?.id === a.id && <CheckIcon />}
+                  </DropdownMenu.Item>
+                ))}
+            </DropdownMenu.Group>
             <DropdownMenu.Separator />
             <DropdownMenu.Item onClick={() => invoke("open_web_window")}>
               <OpenInNewWindowIcon />

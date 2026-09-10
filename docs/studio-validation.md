@@ -21,3 +21,13 @@ The [official CLI](https://github.com/whopio/whop-public-cli) documents media ge
 Run `pnpm test:media` for response/state regression checks and a full sample-video decode. These checks use synthetic responses and a bundled sample, not a paid provider request.
 
 A live paid generation against a real Whop business is still a separate verification step. No real business balance was charged for this repair.
+
+## Studio finishing update
+
+- Production frontend build and media/workflow checks passed.
+- Native app build passed.
+- Verified native Brief / Artwork / Copy tabs; Copy opens a post preview with saved headline and caption.
+- Verified handoff review includes finished artwork, product title, default-plan price, format, and missing-destination state.
+- Saved the existing sample creative into Ads and verified artwork, headline, caption, product, and price carried through.
+- Verified missing destination produces a Complete details action and disables draft campaign planning.
+- No paid generation or campaign publishing performed. Public 0.4.0 DMG has not been replaced by this development build.

@@ -37,3 +37,12 @@ Video typography, logo layers, inline assistant conversations and completion not
 - Ads shows local Studio drafts separately from remote campaigns, with editable copy and a planning handoff to the existing assistant. Finished image drafts still need upload before a live campaign can use them.
 
 Native verification: selected VIP Picks and confirmed its $49/month default plan, saved a sample image draft with an ad headline and post copy, and verified that Ads displayed the finished image (including typography), offer, price and copy together with a clear unpublished label. Automated checks cover prompt length, placement hints, destination validation and crop coordinates.
+
+## Creative review workflow
+
+- The offer bar stays pinned while scrolling, preserving product, default-plan price, and destination.
+- Brief, Artwork, and Copy are separate inspector tabs. Copy opens a live post preview; Artwork returns to the canvas.
+- Artwork includes format selection, crop position values, and a center-crop action. Reset preserves the selected format.
+- Preview rendering is scheduled on animation frames. Exports and ad drafts render a fresh canvas from current edits before capturing bytes.
+- The handoff dialog previews the finished creative alongside its offer, price, destination, and format.
+- Ad drafts identify missing headline, caption, and HTTPS destination before enabling campaign planning. Complete drafts point to audience and budget planning; saving never publishes an ad.

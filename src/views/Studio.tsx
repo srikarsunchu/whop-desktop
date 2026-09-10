@@ -15,11 +15,12 @@ export function Studio({ onOpenAds }: { onOpenAds: () => void }) {
   const { account } = useAccount();
   const saved = useMemo(()=>{try{return JSON.parse(localStorage.getItem(`studio.brief.${account?.id}`)??'{}');}catch{return {};}},[account?.id]);
   const [context, setContext] = useState<CreativeContext>({...EMPTY_CONTEXT,...saved.context});
-  const [inspector, setInspector] = useState<'brief'|'adjust'>('brief');
+  const [inspector, setInspector] = useState<'brief'|'adjust'|'copy'>('brief');
   const [composing, setComposing] = useState(false);
   const [useOpen, setUseOpen] = useState(false);
   const [useAction, setUseAction] = useState<'download'|'ad'>('download');
   const [handoff, setHandoff] = useState(false);
+  const [handoffPreview, setHandoffPreview] = useState('');
   const [guides, setGuides] = useState(false);
   const [postPreview, setPostPreview] = useState(false);
   const [requestNonce,setRequestNonce] = useState(0);
@@ -139,7 +140,16 @@ export function Studio({ onOpenAds }: { onOpenAds: () => void }) {
     })().catch(e=>{if(!disposed)setImageError(String(e));});
     return ()=>{disposed=true;if(objectUrl)URL.revokeObjectURL(objectUrl);};
   },[selected?.url,selected?.type,selected?.id]);
-  useEffect(()=>{if(canvas.current && image.current && imageReady)renderCreative(canvas.current,image.current,edit);},[edit,imageReady]);
+  useEffect(()=>{
+    const frame=requestAnimationFrame(()=>{if(canvas.current && image.current && imageReady)renderCreative(canvas.current,image.current,edit);});
+    return ()=>cancelAnimationFrame(frame);
+  },[edit,imageReady,postPreview]);
+  const finishedCanvas=()=>{
+    if(!image.current || !imageReady)throw Error('Wait for the preview to load.');
+    const output=document.createElement('canvas');
+    renderCreative(output,image.current,edit);
+    return output;
+  };
 
   const addReferences=async(files:File[])=>{
     if(uploadLock.current || busy || !account)return;
@@ -181,7 +191,7 @@ export function Studio({ onOpenAds }: { onOpenAds: () => void }) {
     try{
       if(selected.type==='image'){
         if(!canvas.current || !imageReady)throw Error('Wait for the preview to load.');
-        const bytes=await canvasBytes(canvas.current);
+        const bytes=await canvasBytes(finishedCanvas());
         await invoke('studio_save',{bytes,url:null,video:false});
       }else if(selected.sample){
         const bytes=Array.from(new Uint8Array(await (await fetch(selected.url)).arrayBuffer()));
@@ -208,7 +218,10 @@ export function Studio({ onOpenAds }: { onOpenAds: () => void }) {
     if(!prompt)setPrompt(`Introduce ${product.title}. ${product.description??''} Show the value of the offer with a clear focal point. Leave space for text.`.slice(0,2000));
   };
   const setFormat=(format:CreativeFormat)=>{changeContext({format});if(selected?.type==='image' && !composing)changeEdit({format});};
-  const openUse=()=>{setUseAction(context.purpose==='ad'?'ad':'download');setUseOpen(true);};
+  const openUse=()=>{
+    setHandoffPreview(selected?.type==='image' && imageReady?finishedCanvas().toDataURL('image/png'):selected?.url??'');
+    setUseAction(context.purpose==='ad'?'ad':'download');setUseOpen(true);
+  };
   const continueUse=async()=>{
     if(!selected?.url || handoff)return;
     if(useAction==='download'){await exportAsset();return;}
@@ -217,7 +230,7 @@ export function Studio({ onOpenAds }: { onOpenAds: () => void }) {
       let media:Blob;
       if(selected.type==='image'){
         if(!canvas.current || !imageReady)throw Error('Wait for the image preview to load.');
-        media=new Blob([new Uint8Array(await canvasBytes(canvas.current))],{type:'image/png'});
+        media=new Blob([new Uint8Array(await canvasBytes(finishedCanvas()))],{type:'image/png'});
       }else if(selected.sample)media=await (await fetch(selected.url)).blob();
       else {
         // Video draft keeps its remote identity; it does not pretend a local download exists.
@@ -226,7 +239,7 @@ export function Studio({ onOpenAds }: { onOpenAds: () => void }) {
       const id=selected.adDraftId??crypto.randomUUID();
       await saveAdDraft({id,accountId:selected.accountId,assetId:selected.id,name:context.concept,type:selected.type,sample:!!selected.sample,context:{...context},media,createdAt:Date.now()});
       updateGenerations(xs=>xs.map(g=>g.id===selected.id?{...g,adDraftId:id,context:{...context}}:g));
-      setUseOpen(false);onOpenAds();
+      setUseOpen(false);toast.success('Creative and copy saved to Ads');onOpenAds();
     }catch(e){toast.error(String(e));}finally{setHandoff(false);}
   };
 
@@ -249,14 +262,14 @@ export function Studio({ onOpenAds }: { onOpenAds: () => void }) {
             {postPreview && <div className="post-preview-header"><span className="post-avatar">{account?.title?.slice(0,1)}</span><div><strong>{account?.title}</strong><small>{context.purpose==='ad'?'Sponsored preview':'Post preview'}</small></div><span>···</span></div>}
             {selected?.url ? selected.type==='image'?<><canvas ref={canvas} aria-label="Creative preview with editable typography" style={{display:imageReady?'block':'none'}}/>{!imageReady && <p>{imageError || 'Preparing preview…'}</p>}</>:<video key={selected.url} src={selected.url} controls playsInline preload="metadata" onError={()=>toast.error('Video preview unavailable. Refresh the asset.')}/>:<div className="creative-empty"><div className="empty-frame">✳</div><h2>{selected?pendingMedia(selected)?'Your creative is taking shape':'Generation needs attention':'Choose what you’re promoting.'}</h2><p>{selected?selected.error ?? 'You can keep working while Whop generates your creative.':'Choose a destination and format, then describe the creative or add a reference.'}</p></div>}
             {guides && selected?.type==='image' && <div className="studio-safe-guide" aria-label="Composition guide"><span>Keep key content inside</span></div>}
-            {postPreview && <div className="post-preview-copy"><p>{context.postCopy || 'Add your post copy in the Brief tab.'}</p>{context.adHeadline && <strong>{context.adHeadline}</strong>}<span>{context.callToAction.replaceAll('_',' ')}</span></div>}
+            {postPreview && <div className="post-preview-copy"><p>{context.postCopy || 'Write a caption in the Copy tab.'}</p>{context.adHeadline && <strong>{context.adHeadline}</strong>}<span>{context.callToAction.replaceAll('_',' ')}</span></div>}
             </div>
           </div>
           {selected && <div className="creative-caption"><div><span>{selected.sample?'Sample · ':''}{selected.status}{selected.cost && !selected.sample?` · $${Number(selected.cost).toFixed(2)}`:''}</span><p>{selected.prompt}</p>{selected.error && <p role="alert">{selected.error}</p>}</div><div className="studio-asset-actions"><button onClick={()=>{setPrompt(selected.prompt);setType(selected.type);setInspector('brief');}}>Reuse brief</button>{!selected.id.startsWith('pending-') && <button disabled={refreshing===selected.id} onClick={()=>refresh(selected)}>{refreshing===selected.id?'Checking…':'Refresh'}</button>}<button onClick={()=>{updateGenerations(xs=>xs.filter(x=>x.id!==selected.id));setSelectedId('new');}}>Remove</button></div></div>}
           <div className="creative-filmstrip" aria-label="Creative versions">{mine.map((g,i)=><button key={g.id} className={selected?.id===g.id?'is-selected':''} onClick={()=>selectAsset(g)} aria-label={`Select ${g.type} ${mine.length-i}`} aria-pressed={selected?.id===g.id}>{g.url?g.type==='image'?<img src={g.url} alt=""/>:<video src={g.url} muted preload="metadata"/>:<span className="filmstrip-pending">{pendingMedia(g)?'◌':'!'}</span>}<span>{g.context?.concept ?? `${g.type==='video'?'Video':'Image'} ${mine.length-i}`}{g.parentId?' · variation':''}</span></button>)}{!mine.length && <span className="studio-hint">Your creative history, all in one place.</span>}</div>
         </section>
         <aside className="studio-inspector">
-          <div className="inspector-tabs" role="tablist" aria-label="Creative controls"><button role="tab" aria-selected={inspector==='brief'} onClick={()=>setInspector('brief')}>Brief</button><button role="tab" aria-selected={inspector==='adjust'} onClick={()=>setInspector('adjust')} disabled={!selected?.url || selected.type!=='image' || composing}>Adjust artwork</button></div>
+          <div className="inspector-tabs" role="tablist" aria-label="Creative controls"><button role="tab" aria-selected={inspector==='brief'} onClick={()=>setInspector('brief')}>Brief</button><button role="tab" aria-selected={inspector==='adjust'} onClick={()=>{setInspector('adjust');setPostPreview(false);}} disabled={!selected?.url || selected.type!=='image' || composing}>Artwork</button><button role="tab" aria-selected={inspector==='copy'} onClick={()=>{setInspector('copy');setPostPreview(true);}} disabled={!selected?.url || composing}>Copy</button></div>
           <div className="inspector-body">
           {inspector==='brief'?<>
             <label className="studio-field">What are you making?<select value={context.purpose} onChange={e=>changeContext({purpose:e.target.value as CreativePurpose})}>{Object.entries(PURPOSE_LABELS).map(([key,label])=><option key={key} value={key}>{label}</option>)}</select></label>
@@ -275,7 +288,13 @@ export function Studio({ onOpenAds }: { onOpenAds: () => void }) {
           {type==='video' && <><p className="studio-hint">{references.length===1?'This image seeds the opening frame.':'Multiple references guide subject and style.'}</p><div className="studio-setting-row"><label className="studio-field">Length<select value={duration} onChange={e=>setDuration(e.target.value)}>{['5','10','15'].map(x=><option key={x} value={x}>{x} seconds</option>)}</select></label><label className="studio-field">Resolution<select value={resolution} onChange={e=>setResolution(e.target.value)}>{['480p','720p','1080p','4k'].map(x=><option key={x}>{x}</option>)}</select></label></div><p className="studio-hint">Resolution availability depends on Whop’s generation model.</p></>}
 
 
-            <details className="studio-copy-details"><summary>Post copy & destination</summary><label className="studio-field">Post copy<textarea rows={3} value={context.postCopy} maxLength={2200} onChange={e=>changeContext({postCopy:e.target.value})} placeholder="The caption that accompanies your creative."/></label><label className="studio-field">Ad headline<input value={context.adHeadline} maxLength={150} onChange={e=>changeContext({adHeadline:e.target.value})}/></label><p className="studio-hint">This copy sits outside the artwork. Add text to the image in Adjust artwork.</p></details>
+          </>:inspector==='copy'?<>
+            <div className="studio-section-heading"><span>Post & ad copy</span><span>Live preview</span></div>
+            <label className="studio-field">Headline<input maxLength={150} value={context.adHeadline} onChange={e=>changeContext({adHeadline:e.target.value})} placeholder="A reason to click"/></label>
+            <label className="studio-field">Caption<textarea rows={7} maxLength={2200} value={context.postCopy} onChange={e=>changeContext({postCopy:e.target.value})} placeholder="What does your offer help someone do?"/></label>
+            <span className="studio-hint">{context.postCopy.length}/2,200 characters · Saved on this Mac</span>
+            <label className="studio-field">Call to action<select value={context.callToAction} onChange={e=>changeContext({callToAction:e.target.value})}><option value="learn_more">Learn more</option><option value="sign_up">Sign up</option><option value="subscribe">Subscribe</option><option value="shop_now">Shop now</option></select></label>
+            <p className="studio-hint">Your headline and caption travel with the finished artwork into Ads.</p>
           </>:<>
             <div className="studio-section-heading"><span>Artwork adjustments</span><span>{FORMAT_LABELS[context.format]}</span></div>
           <fieldset disabled={!selected?.url || selected.type!=='image'}>
@@ -285,9 +304,11 @@ export function Studio({ onOpenAds }: { onOpenAds: () => void }) {
             <label className="studio-field">Placement<select value={edit.position} onChange={e=>changeEdit({position:e.target.value as Finish['position']})}><option value="bottom">Bottom left</option><option value="top">Top left</option></select></label>
             <label className="studio-color">Text color<input type="color" value={edit.color} onChange={e=>changeEdit({color:e.target.value})}/></label>
             <label className="studio-check"><input type="checkbox" checked={edit.shade} onChange={e=>changeEdit({shade:e.target.checked})}/>Shade behind text</label>
-            <label className="studio-field">Horizontal crop<input type="range" min="0" max="100" value={edit.offsetX} onChange={e=>changeEdit({offsetX:Number(e.target.value)})}/></label>
-            <label className="studio-field">Vertical crop<input type="range" min="0" max="100" value={edit.offsetY} onChange={e=>changeEdit({offsetY:Number(e.target.value)})}/></label>
-            <button className="studio-reset" onClick={()=>changeEdit(DEFAULT_FINISH)}>Reset adjustments</button>
+            <label className="studio-field">Format<select value={context.format} onChange={e=>setFormat(e.target.value as CreativeFormat)}>{Object.entries(FORMAT_LABELS).map(([key,label])=><option key={key} value={key}>{label}</option>)}</select></label>
+            <label className="studio-field">Horizontal crop · {edit.offsetX}%<input type="range" min="0" max="100" value={edit.offsetX} onChange={e=>changeEdit({offsetX:Number(e.target.value)})}/></label>
+            <label className="studio-field">Vertical crop · {edit.offsetY}%<input type="range" min="0" max="100" value={edit.offsetY} onChange={e=>changeEdit({offsetY:Number(e.target.value)})}/></label>
+            <button className="studio-reset" onClick={()=>changeEdit({offsetX:50,offsetY:50})}>Center crop</button>
+            <button className="studio-reset" onClick={()=>changeEdit({...DEFAULT_FINISH,format:context.format})}>Reset adjustments</button>
           </fieldset>
           <p className="studio-hint">{selected?.type==='video'?'Video exports preserve the original clip. Typography is available for images.':'Reposition the image within the frame. Your original stays in history.'}</p>
           {selected?.type==='image' && <p className="studio-hint">Animate uses the original image, before typography.</p>}
@@ -297,7 +318,11 @@ export function Studio({ onOpenAds }: { onOpenAds: () => void }) {
           {inspector==='brief' && (<div className="studio-generate"><Button size="3" disabled={!account || !prompt.trim() || busy || uploading} loading={busy} onClick={()=>account?.demo?generate():setConfirming(true)}>{account?.demo?'Preview sample':`Generate ${type}`} <span aria-hidden="true">↗</span></Button><p className="studio-hint">{account?.demo?'Sample preview · not generated from your prompt · no charge':'Uses your Whop balance. Review before generating.'}</p></div>)}
         </aside>
       </div>
-      <Dialog.Root open={useOpen} onOpenChange={setUseOpen}><Dialog.Content className="studio-use-dialog" size="3"><Dialog.Title>Use this creative</Dialog.Title><Dialog.Description>{context.productTitle || account?.title} · {context.concept}</Dialog.Description>
+      <Dialog.Root open={useOpen} onOpenChange={setUseOpen}><Dialog.Content className="studio-use-dialog" size="3"><Dialog.Title>Use this creative</Dialog.Title><Dialog.Description>{context.concept} · Review before you continue</Dialog.Description>
+        <div className="handoff-review">
+          {selected?.type==='image'?<img src={handoffPreview} alt="Finished creative, including your artwork edits"/>:<video src={handoffPreview} controls/>}
+          <div><span className="studio-eyebrow">YOUR OFFER</span><strong>{context.productTitle || 'No offer selected'}</strong><span>{context.price || 'No price selected'}</span><p>{context.destinationUrl || 'Destination not added yet'}</p><small>{FORMAT_LABELS[context.format]}{selected?.sample?' · Sample':''}</small></div>
+        </div>
         <div className="studio-use-options"><button aria-pressed={useAction==='download'} onClick={()=>setUseAction('download')}><strong>Download for posting</strong><span>Save your finished artwork. Copy the caption separately.</span></button><button aria-pressed={useAction==='ad'} onClick={()=>setUseAction('ad')}><strong>Continue to an ad draft</strong><span>Keep the creative, offer and copy together in Ads.</span></button></div>
         <label className="studio-field">Post copy<textarea rows={3} value={context.postCopy} maxLength={2200} onChange={e=>changeContext({postCopy:e.target.value})} placeholder="What should someone know before they click?"/></label>
         {useAction==='ad' && <><label className="studio-field">Ad headline<input value={context.adHeadline} onChange={e=>changeContext({adHeadline:e.target.value})} maxLength={150}/></label><label className="studio-field">Call to action<select value={context.callToAction} onChange={e=>changeContext({callToAction:e.target.value})}><option value="learn_more">Learn more</option><option value="sign_up">Sign up</option><option value="subscribe">Subscribe</option><option value="shop_now">Shop now</option></select></label><label className="studio-field">Destination link<input value={context.destinationUrl} onChange={e=>changeContext({destinationUrl:e.target.value})} placeholder="https://whop.com/your-offer"/></label>{context.destinationUrl && !validDestination(context.destinationUrl) && <p role="alert" className="studio-hint">Enter a complete HTTPS destination link.</p>}<p className="studio-hint">Saved on this Mac. Nothing is published and no ad budget is spent.</p></>}

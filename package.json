@@ -1,7 +1,7 @@
 {
   "name": "whop-desktop",
   "private": true,
-  "version": "0.4.0",
+  "version": "0.4.1",
   "type": "module",
   "description": "Whop Desktop \u2014 unofficial personal-use macOS wrapper for whop.com with a hidden title bar, tray icon, global hotkey and CSS tweaks (not affiliated with Whop).",
   "author": "srikarsunchu",

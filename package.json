@@ -1,9 +1,12 @@
 {
   "name": "whop-desktop",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
-  "description": "Unofficial personal-use macOS desktop wrapper for whop.com (not affiliated with Whop).",
+  "description": "Whop Desktop — unofficial personal-use macOS wrapper for whop.com with a hidden title bar, tray icon, global hotkey and CSS tweaks (not affiliated with Whop).",
+  "author": "srikarsunchu",
+  "license": "MIT",
+  "repository": "github:srikarsunchu/whop-desktop",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",

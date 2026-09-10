@@ -1,385 +1,140 @@
-<p align="center">
-  <img src="./banner.png" alt="Whop for macOS — an unofficial, open-source desktop app" />
-</p>
+# Whop Desktop
 
-# Whop (unofficial desktop wrapper)
-
-<p align="center">
-  <a href="https://whop-desktop.vercel.app/"><img src="https://img.shields.io/badge/Download-macOS-FA4616?style=for-the-badge&logo=apple&logoColor=white" alt="Download for macOS" /></a>
-</p>
+An unofficial, open-source **macOS** desktop app for [whop.com](https://whop.com),
+built with [Tauri 2](https://tauri.app). It loads whop.com in a native window and
+adds the things a real Mac app should have: a hidden title bar, a menu-bar icon,
+a global hotkey, and user CSS tweaks.
 
 <p align="center">
   <img src="https://img.shields.io/badge/platform-macOS%2011%2B-151515" alt="Platform: macOS 11+" />
   <img src="https://img.shields.io/badge/built%20with-Tauri%202-24C8DB?logo=tauri&logoColor=white" alt="Built with Tauri 2" />
-  <img src="https://img.shields.io/badge/signed%20%26%20notarized-Developer%20ID-success" alt="Signed & notarized" />
   <img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT" />
 </p>
 
-A lightweight, native **macOS** desktop wrapper around [whop.com](https://whop.com),
-built with [Tauri 2](https://tauri.app). Universal (Apple Silicon + Intel), code
-signed and notarized by Apple — [**download it here**](https://whop-desktop.vercel.app/).
-
-> **This is an unofficial, personal-use project.** It is **not affiliated with,
-> endorsed by, or distributed by Whop.** It simply loads the public website
-> `https://whop.com` in a native macOS window. It does not bundle or modify any
-> Whop code. The app/site icon is Whop's brandmark (a trademark of Whop — see
-> [License & trademarks](#license--trademarks)); you can swap it for your own or
-> a neutral placeholder via `scripts/generate-icons.sh`.
+> **Unofficial, personal-use project.** Not affiliated with, endorsed by, or
+> distributed by Whop. It simply loads the public website `https://whop.com` in
+> a native macOS window; it does not bundle or modify any Whop code. The icon is
+> Whop's brandmark (a trademark of Whop, see [License & trademarks](#license--trademarks));
+> swap it via `scripts/generate-icons.sh`.
+>
+> Fork of [siyabendoezdemir/whop-desktop](https://github.com/siyabendoezdemir/whop-desktop) (MIT).
 
 ---
 
-## What it is
+## What's different in this fork
 
-Whop loads `https://whop.com` as a **top-level external URL** inside a native
-WKWebView window (not an iframe). The website authenticates and stores its own
-session in the normal webview cookie store, so it behaves like a dedicated,
-single-site browser:
+- **Hidden title bar.** The traffic lights float over the page and the window
+  reads as a real app, not a browser. The top strip is a native drag region
+  (double-click zooms), handled in AppKit, so the web page never gets any native
+  access.
+- **Menu-bar icon.** A monochrome Whop mark in the menu bar. Left click shows
+  or hides the window, right click gives Show/Hide and Quit.
+- **Global hotkey.** `⌘⇧W` toggles the window from anywhere in macOS.
+- **Tweaks in the View menu.** Compact Density, Hide Promos & Banners, Dark
+  Scrollbars. Checkmarks persist across launches.
+- **Custom CSS.** View > Edit Custom CSS… opens
+  `~/Library/Application Support/com.srikarsunchu.whopdesktop/custom.css` in
+  your editor; View > Reload Custom CSS (`⌘⌥R`) applies it live, no page reload.
+- Everything the original had: persistent login, OAuth/checkout popups that
+  stay in-app, downloads to `~/Downloads` with a notification and Reveal in
+  Finder, camera/mic through the normal macOS prompts, native Back/Forward/
+  Reload/Zoom menu, close-hides-the-window.
 
-- Persistent login/cookies/localStorage across launches
-- Normal links, redirects, OAuth/email-login popups, and checkout flows stay in the app
-- Downloads land in your `~/Downloads`
-- Camera/microphone prompts work through the standard macOS permission system
-- A native macOS menu with Back/Forward/Reload/Zoom and standard Edit shortcuts
+---
 
-It is intentionally minimal and grants the remote website **zero** access to any
-native (Tauri) capability.
+## Install (unsigned build)
+
+There is no signed release. Build it yourself (below), then:
+
+```bash
+cp -R "src-tauri/target/release/bundle/macos/Whop Desktop.app" /Applications/
+```
+
+If you got the `.app` from somewhere other than your own build, macOS will say
+it is damaged. Clear the quarantine flag, or right-click > Open:
+
+```bash
+xattr -dr com.apple.quarantine "/Applications/Whop Desktop.app"
+```
 
 ---
 
 ## Requirements
 
-- macOS 11+ (developed/tested on macOS 26, Apple Silicon)
+- macOS 11+ (developed on macOS 26, Apple Silicon)
 - [Node.js](https://nodejs.org) 18+ and [pnpm](https://pnpm.io) 9+
 - [Rust](https://rustup.rs) (stable) + Cargo
 - Xcode Command Line Tools: `xcode-select --install`
 
-If any are missing:
-
-```bash
-# Rust
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-
-# pnpm (via corepack, ships with Node)
-corepack enable && corepack prepare pnpm@latest --activate
-
-# Xcode Command Line Tools
-xcode-select --install
-```
-
----
-
-## Install
+## Develop
 
 ```bash
 pnpm install
+pnpm tauri dev      # debug build with Web Inspector (View > Open Web Inspector)
 ```
 
-## Develop
-
-Runs Vite + a debug build of the app with the Web Inspector enabled:
-
-```bash
-pnpm tauri dev
-```
-
-## Release build (`.app` + `.dmg`)
+## Build
 
 ```bash
 pnpm tauri build
+# -> src-tauri/target/release/bundle/macos/Whop Desktop.app
+# -> src-tauri/target/release/bundle/dmg/Whop Desktop_0.2.0_aarch64.dmg
 ```
 
-### Output locations
+`scripts/build-signed.sh` still works if you have a Developer ID certificate;
+copy `.env.signing.example` to `.env.signing` and fill it in.
 
-After a successful `pnpm tauri build`, the artifacts are written to:
-
-- App: `src-tauri/target/release/bundle/macos/Whop.app`
-- DMG: `src-tauri/target/release/bundle/dmg/Whop_0.1.0_aarch64.dmg`
-
-> The `aarch64` suffix reflects Apple Silicon. On an Intel Mac the DMG is named
-> `Whop_0.1.0_x64.dmg`.
-
-These are **unsigned local development builds**. macOS Gatekeeper will block
-them when downloaded from the web (a "Whop is damaged" message). For builds you
-intend to share, use the signed + notarized pipeline below instead — those open
-with no warning on any Mac.
-
----
-
-## Replacing the icon
-
-A neutral placeholder icon is generated at build setup. To swap in your own:
-
-1. Prepare a **1024 × 1024 PNG**.
-2. Run:
+## Icons
 
 ```bash
-./scripts/generate-icons.sh /path/to/your-icon-1024.png
+./scripts/generate-icons.sh /path/to/icon-1024.png   # app icon set
+python3 scripts/make-tray-icon.py                    # menu-bar template icon
 ```
 
-This calls `pnpm tauri icon`, which regenerates every required size into
-`src-tauri/icons/` (`.icns`, `.png`, `.ico`, plus iOS/Android sets). Rebuild with
-`pnpm tauri build` afterward.
+---
 
-To regenerate the neutral placeholder instead:
+## How it works
+
+- The window is created in Rust (`src-tauri/src/lib.rs`) and points at
+  `https://whop.com` as a top-level external URL in WKWebView, not an iframe.
+  The site owns its cookies, localStorage, popups and downloads like a normal
+  browser, with a fixed persistent data store so logins survive relaunch.
+- The remote page is **never** granted Tauri IPC. `capabilities/main-capability.json`
+  has no `remote` allowlist, so whop.com cannot call any native command or
+  plugin. Downloads, notifications, the tray, the hotkey and the menu are all
+  driven from Rust.
+- The one thing pushed into the page is `src-tauri/js/init.js`, a script
+  written by this app. It adds stylesheets (title-bar padding, the tweaks,
+  your `custom.css`) and a small `window.__whopDesktop` object that Rust calls
+  through `eval`. It exposes nothing native.
+- Window dragging under the hidden title bar is done with an AppKit event
+  monitor (`performWindowDragWithEvent`), because Tauri's own drag region
+  needs IPC that the page deliberately doesn't have.
+- Downloads are saved to `~/Downloads` with a sanitised, de-duplicated
+  filename. Debug logs never contain full URLs, only scheme and host.
+
+## Files
+
+| Path | Purpose |
+|---|---|
+| `src-tauri/src/lib.rs` | All app logic |
+| `src-tauri/js/init.js` | Injected page script (tweaks, custom CSS) |
+| `src-tauri/tauri.conf.json` | App name, bundle id, bundling |
+| `src-tauri/capabilities/main-capability.json` | Minimal capability, no remote access |
+| `scripts/` | Icon generation and signed-build script |
+
+## Clearing session data
+
+Quit the app, then:
 
 ```bash
-./scripts/generate-icons.sh        # no argument → recreates the placeholder
+rm -rf ~/Library/WebKit/com.srikarsunchu.whopdesktop
+rm -rf ~/Library/Application\ Support/com.srikarsunchu.whopdesktop
+rm -rf ~/Library/Caches/com.srikarsunchu.whopdesktop
 ```
-
-The placeholder generator (`scripts/make-placeholder-icon.py`) uses only the
-Python standard library and never downloads or copies any third-party artwork.
-
----
-
-## Behavior details
-
-### Camera & microphone
-
-- The bundle declares `NSCameraUsageDescription` and `NSMicrophoneUsageDescription`
-  (see `src-tauri/Info.plist`), which macOS shows in the permission prompt.
-- Permission is **not** requested on startup. macOS prompts only the first time
-  the web page actually calls `navigator.mediaDevices.getUserMedia()`.
-- `navigator.mediaDevices.getUserMedia()` is available in the WKWebView. If you
-  deny permission, the web page's promise rejects normally and the app keeps
-  running — denial does not crash anything.
-- `src-tauri/Entitlements.plist` contains the minimum camera / microphone /
-  outbound-network entitlements. **These only take effect once the app is
-  code-signed**; for the current unsigned builds, access is governed by the
-  Info.plist strings plus the macOS TCC prompt.
-
-### Downloads
-
-- Downloads initiated by the website are saved to `~/Downloads`.
-- The server-provided filename is preserved when safe; unsafe characters are
-  sanitized, and a numeric suffix `(1)`, `(2)`, … is added to avoid overwriting
-  an existing file.
-- When a download finishes, a **native completion notification** is shown (only
-  if you've granted the app notification permission).
-- **File → Reveal Last Download in Finder** (`⌘⇧J`) reveals the most recent
-  completed download; **File → Open Downloads Folder** opens `~/Downloads`.
-- The remote page is **not** granted any general filesystem access.
-
-### Notifications
-
-There are two independent systems:
-
-1. **Whop's own web notifications / Web Push** — these depend on Whop's backend
-   and service-worker configuration. macOS WKWebView has historically limited
-   support for the Web Push API, and we cannot verify this without a logged-in
-   account and Whop's server cooperation. **This wrapper does not fake, inject,
-   or work around web push.** If it works, it's because WKWebView + Whop support
-   it; if it doesn't, that is a platform limitation (see below).
-2. **Native wrapper notifications** — used only for download completion, driven
-   from Rust via the official `tauri-plugin-notification`. This works
-   independently of (1) and is never exposed to the web page.
-
-### Window / Dock behavior
-
-- Closing the window with the red traffic-light button **hides** it instead of
-  quitting (standard macOS behavior), keeping your session alive.
-- Clicking the Dock icon restores (or recreates) the window.
-- Quit fully with **⌘Q** (App → Quit Whop).
-
----
-
-## Architecture
-
-### Why a top-level external URL (not an iframe)
-
-The window is created in Rust with `WebviewUrl::External("https://whop.com")`.
-Loading the site as the webview's own top-level document (rather than inside an
-iframe) is what makes cookies, OAuth popups, `postMessage`, downloads, and
-camera/mic permission prompts behave like a real browser. Iframing whop.com
-would break third-party-cookie/OAuth flows and would likely be blocked by the
-site's framing protections anyway.
-
-### Navigation & popup handling
-
-All handling lives in `src-tauri/src/lib.rs`:
-
-- **`on_navigation`** decides whether each top-level navigation may proceed.
-  `https`/`http`/`about`/`blob`/`data` stay in the app (so normal browsing,
-  auth, checkout, upload, media, and payment redirects all work). `mailto:`,
-  `tel:`, `sms:`, and FaceTime URLs are handed to the macOS default handler and
-  the in-webview navigation is canceled. Everything else (e.g. `file://`,
-  unknown custom schemes) is blocked.
-- **`on_new_window`** handles `window.open` and `target="_blank"`. Web URLs are
-  allowed to open as a real popup using WKWebView's default implementation,
-  which **preserves the `window.opener` relationship** — this is what lets
-  OAuth/email-login/checkout popups send their result back to the main page and
-  close themselves. Popup requests are never silently discarded; non-web schemes
-  are opened externally or blocked.
-
-### How downloads work
-
-`on_download` intercepts WKWebView download requests. On `Requested` it computes
-a safe, de-duplicated destination in `~/Downloads`; on `Finished` it records the
-path (for Reveal in Finder) and shows a native notification. No signed download
-URL is ever logged.
-
-### Why remote content is denied Tauri IPC (security)
-
-This app loads remote content we don't control, so the threat model assumes the
-page could be hostile. Mitigations:
-
-- `capabilities/main-capability.json` has **no `remote` allowlist**, so the
-  whop.com origin can never call Tauri IPC, plugins, or native commands.
-- `withGlobalTauri` is `false`; no Tauri JS API is injected into the page.
-- Native features (downloads, notifications, menu, mailto/tel, reveal-in-Finder)
-  run entirely in Rust and are invisible to the web page.
-- No TLS validation is disabled, no traffic is proxied/intercepted, no tokens
-  are injected, no credentials are stored by the wrapper, no analytics/tracking
-  is added, and pages are not modified.
-- `csp` applies only to the (essentially empty) local frontend; it has no effect
-  on the remote site, whose own server-sent CSP is respected. We do **not** use
-  `csp: null`.
-
-### Debug logging
-
-Debug builds print developer logs for navigation, blocked URLs, popup requests,
-and download start/finish. Logs deliberately include **only scheme + host** (and
-download filenames), never full URLs, cookies, tokens, form contents, or
-personal data. Release builds compile the logging out entirely.
-
----
-
-## Manual test checklist
-
-Some items require your Whop login and can't be automated here:
-
-1. `pnpm tauri dev` (or open the built app) → window opens, `whop.com` loads.
-2. Open the login page and sign in.
-3. Quit (⌘Q) and reopen → you are still logged in.
-4. Click around Whop → navigation stays inside the app.
-5. Test Back/Forward/Reload (View menu) and Copy/Paste (Edit menu).
-6. Click a `target="_blank"` link → it opens (as a popup) rather than vanishing.
-7. Trigger a file download → it lands in `~/Downloads`; a notification appears;
-   File → Reveal Last Download in Finder highlights it.
-8. Use a Whop feature that needs the camera → macOS prompts; allow/deny both work.
-9. Same for the microphone.
-10. Deny a permission → the app keeps running (no crash).
-
----
-
-## Troubleshooting
-
-- **"Whop is damaged / can't be opened":** this only happens with an **unsigned
-  local build** downloaded from the web. The shared release is signed +
-  notarized and opens normally. If you built it yourself and want to bypass
-  Gatekeeper locally, run `xattr -dr com.apple.quarantine /Applications/Whop.app`
-  — or just build with `./scripts/build-signed.sh`.
-- **Camera/mic never prompts:** confirm the feature actually calls
-  `getUserMedia`, and check **System Settings → Privacy & Security → Camera /
-  Microphone**. If you previously denied, re-enable it there.
-- **No download notification:** grant notifications in **System Settings →
-  Notifications → Whop**. Downloads still complete regardless.
-- **Build fails on `pnpm tauri build`:** ensure Xcode CLT is installed
-  (`xcode-select -p`) and Rust is up to date (`rustup update`).
-
-### Clearing the app's browsing / session data
-
-This logs you out and wipes cookies/localStorage for the wrapper. WKWebView
-stores per-app web data under your user Library; remove the app's data
-container and WebKit storage:
-
-```bash
-# Quit Whop first, then:
-rm -rf ~/Library/WebKit/technologies.ciya.whop
-rm -rf ~/Library/Caches/technologies.ciya.whop
-rm -rf "~/Library/Containers/technologies.ciya.whop"
-rm -rf "~/Library/Application Support/technologies.ciya.whop"
-```
-
-> Paths can vary slightly by macOS version. The bundle identifier is
-> `technologies.ciya.whop`; searching `~/Library` for that string finds any
-> remaining data. Removing it forces a fresh login next launch.
-
----
-
-## Known WKWebView / authentication limitations
-
-- **Web Push / browser notifications from Whop** may not work: macOS WKWebView's
-  support for the Web Push API is limited and depends on Whop's own
-  service-worker/back-end setup. This wrapper neither guarantees nor fakes it.
-  Native download notifications are unaffected.
-- **Hard "force reload" (cache bypass)** isn't exposed by WKWebView; Force Reload
-  performs a normal reload.
-- **Entitlements require signing** to take effect (see Camera & microphone). The
-  signed + notarized release pipeline (`./scripts/build-signed.sh`) applies them.
-
----
-
-## Repository layout
-
-```
-.                     Tauri 2 desktop app
-├── src/              Minimal placeholder frontend (bundler requirement only)
-├── src-tauri/        Rust backend, config, capabilities, Info.plist, icons
-├── scripts/          Icon generation / replacement
-└── landing/          Next.js download page (the marketing/share site)
-```
-
-## Landing page
-
-`landing/` is a small Next.js site (a single hero) used to share the build with
-others. It serves the `.dmg` from `landing/public/downloads/`.
-
-```bash
-cd landing
-pnpm install
-pnpm dev          # http://localhost:3000
-pnpm build        # production build
-```
-
-Deploy it anywhere that hosts Next.js (e.g. Vercel). When you ship a new app
-version, drop the new `.dmg` into `landing/public/downloads/` and bump the
-version constant in `landing/app/page.tsx`.
-
-## Signed + notarized release (recommended for sharing)
-
-By default `pnpm tauri build` produces an **unsigned** app, which macOS blocks
-with a "Whop is damaged" error when downloaded from the web (it isn't damaged —
-just unsigned). With a paid Apple Developer account you can sign + notarize so
-it opens cleanly for everyone with no Terminal workaround.
-
-One-time setup:
-
-1. Create a **Developer ID Application** certificate
-   (developer.apple.com → Certificates) and install it in Keychain. Confirm with:
-   ```bash
-   security find-identity -v -p codesigning
-   ```
-2. Create notarization credentials — either an **App Store Connect API key**
-   (recommended) or an **Apple ID app-specific password**.
-3. Configure your secrets (never committed):
-   ```bash
-   cp .env.signing.example .env.signing   # then fill it in
-   ```
-
-Build a signed + notarized **universal** (Intel + Apple Silicon) release:
-
-```bash
-./scripts/build-signed.sh
-```
-
-This signs, uploads to Apple for notarization, staples the ticket, verifies it,
-and copies the result to `landing/public/downloads/`. The output opens with no
-warning on any Mac. `.env.signing`, `*.p8`, `*.p12`, and `*.cer` are gitignored.
-
-## Contributing / building from a fresh clone
-
-The raw Whop brand-kit files and the branded icon source are **not** committed
-(see `.gitignore`). A fresh clone builds with the generated icons already in
-`src-tauri/icons/`. To use your own icon, run `./scripts/generate-icons.sh
-/path/to/icon-1024.png`; to produce a neutral placeholder, run it with no
-argument.
 
 ## License & trademarks
 
-Source code is released under the **MIT License** (see [`LICENSE`](./LICENSE)).
-
-This is an **unofficial, personal-use** project and is **not affiliated with,
-endorsed by, or distributed by Whop**. "Whop" and the Whop logo are trademarks
-of their respective owner; the MIT license covers this project's own code only
-and grants no rights to Whop's name or marks. Don't use this project to imply
-any official affiliation with Whop.
+MIT, see [LICENSE](./LICENSE). Original work © siyabendoezdemir, fork
+© srikarsunchu. "Whop" and the Whop logo are trademarks of their respective
+owner; this project's license covers its own source code only.

@@ -11,9 +11,9 @@
 <plist version="1.0">
   <dict>
     <key>NSCameraUsageDescription</key>
-    <string>Whop needs camera access when you choose to use video, image capture, or verification features.</string>
+    <string>Whop Desktop needs camera access when you choose to use video, image capture, or verification features.</string>
 
     <key>NSMicrophoneUsageDescription</key>
-    <string>Whop needs microphone access when you choose to use voice, audio, or call features.</string>
+    <string>Whop Desktop needs microphone access when you choose to use voice, audio, or call features.</string>
   </dict>
 </plist>

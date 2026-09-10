@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Build a SIGNED + NOTARIZED universal (Intel + Apple Silicon) release of Whop.
+# Build a SIGNED + NOTARIZED universal (Intel + Apple Silicon) release of Whop Desktop.
 #
 # This produces a .dmg that opens cleanly on any Mac with no Gatekeeper warning
 # and no Terminal workaround — because it's signed with your Developer ID and
@@ -46,7 +46,7 @@ pnpm tauri build --target universal-apple-darwin
 
 TARGET_ROOT="${CARGO_TARGET_DIR:-src-tauri/target}"
 BUNDLE_DIR="$TARGET_ROOT/universal-apple-darwin/release/bundle"
-APP="$BUNDLE_DIR/macos/Whop.app"
+APP="$BUNDLE_DIR/macos/Whop Desktop.app"
 DMG="$(ls -t "$BUNDLE_DIR"/dmg/*.dmg 2>/dev/null | head -1 || true)"
 
 if [ -z "$DMG" ]; then
@@ -72,16 +72,7 @@ codesign --verify --deep --strict --verbose=2 "$APP" || true
 spctl -a -vvv -t open --context context:primary-signature "$DMG" || true
 xcrun stapler validate "$DMG" || echo "(could not validate staple — review notarization output above)"
 
-VERSION="$(node -p "require('./package.json').version")"
-DEST="landing/public/downloads/Whop_${VERSION}_universal.dmg"
-mkdir -p landing/public/downloads
-cp "$DMG" "$DEST"
-
 echo
 echo "Done."
 echo "  Signed app: $APP"
 echo "  Signed dmg: $DMG"
-echo "  Published to landing: $DEST"
-echo
-echo "Final step: point the landing button at the signed dmg and drop the"
-echo "Terminal workaround, then commit + push (auto-redeploys on Vercel)."

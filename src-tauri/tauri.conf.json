@@ -1,9 +1,9 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Whop",
-  "mainBinaryName": "Whop",
-  "version": "0.1.0",
-  "identifier": "technologies.ciya.whop",
+  "productName": "Whop Desktop",
+  "mainBinaryName": "Whop Desktop",
+  "version": "0.2.0",
+  "identifier": "com.srikarsunchu.whopdesktop",
   "build": {
     "beforeDevCommand": "pnpm dev",
     "devUrl": "http://localhost:1420",
@@ -16,16 +16,21 @@
     "security": {
       "csp": "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'",
       "dangerousDisableAssetCspModification": false,
-      "capabilities": ["main-capability"]
+      "capabilities": [
+        "main-capability"
+      ]
     }
   },
   "bundle": {
     "active": true,
-    "targets": ["app", "dmg"],
+    "targets": [
+      "app",
+      "dmg"
+    ],
     "category": "SocialNetworking",
-    "shortDescription": "Unofficial personal-use desktop wrapper for whop.com",
-    "longDescription": "Whop is an unofficial, personal-use desktop wrapper around whop.com. It is not affiliated with, endorsed by, or distributed by Whop.",
-    "copyright": "Personal use. Unofficial wrapper, not affiliated with Whop.",
+    "shortDescription": "Unofficial personal-use desktop wrapper for whop.com (fork with tweaks)",
+    "longDescription": "Whop Desktop is an unofficial, personal-use desktop wrapper around whop.com with a hidden title bar, menu-bar tray icon, global hotkey and user CSS tweaks. It is not affiliated with, endorsed by, or distributed by Whop.",
+    "copyright": "Copyright (c) 2026 srikarsunchu. Unofficial wrapper, not affiliated with Whop.",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

@@ -4,17 +4,10 @@ node_modules/
 
 # Frontend build output
 dist/
-.next/
-out/
 
 # Rust / Tauri build output
 src-tauri/target/
 src-tauri/gen/
-
-# Next.js / Vercel
-.vercel/
-*.tsbuildinfo
-next-env.d.ts
 
 # Environment & secrets (never commit these)
 .env

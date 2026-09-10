@@ -498,3 +498,12 @@ tr[data-clickable] {
   text-underline-offset: 2px;
   cursor: pointer;
 }
+
+/* Frosted's toast viewport is a fixed layer at z-index 9999 that otherwise
+   swallows every click in the app. Let clicks through; toasts stay clickable. */
+.fui-ToastViewport {
+  pointer-events: none !important;
+}
+.fui-ToastViewport > * {
+  pointer-events: auto;
+}

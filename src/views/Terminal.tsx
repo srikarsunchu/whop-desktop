@@ -1,5 +1,7 @@
-import { Button, Card, Kbd, Text, TextField } from "frosted-ui";
+import { Button, Card, IconButton, Kbd, Text, TextField, Tooltip, toast } from "frosted-ui";
+import { CopyIcon, ReloadIcon } from "@radix-ui/react-icons";
 import { useEffect, useRef, useState } from "react";
+import { JsonText } from "../components/Markdown";
 import { PageHeader } from "../components/Panel";
 import { runWhopRaw, useAccount } from "../lib/whop";
 
@@ -11,9 +13,10 @@ interface Entry {
   code?: number;
   ms?: number;
   running: boolean;
+  open?: boolean;
 }
 
-/** Splits a command line into argv, honouring double quotes. */
+/** Splits a command line into argv, honouring quotes. */
 function argv(line: string): string[] {
   const out: string[] = [];
   const re = /"([^"]*)"|'([^']*)'|(\S+)/g;
@@ -24,7 +27,7 @@ function argv(line: string): string[] {
 
 const WRITE = /\b(create|delete|update|cancel|pause|resume|transfer|deploy|publish|unpublish|replay|extend|invite|logout|switch|mark_read|form_company|transfer_ownership)\b/;
 
-export function Terminal({ seed, onSeedConsumed }: { seed: string | null; onSeedConsumed: () => void }) {
+export function Terminal({ seed, onSeedConsumed, embedded }: { seed: string | null; onSeedConsumed: () => void; embedded?: boolean }) {
   const { account } = useAccount();
   const [line, setLine] = useState("");
   const [entries, setEntries] = useState<Entry[]>([]);
@@ -63,15 +66,8 @@ export function Terminal({ seed, onSeedConsumed }: { seed: string | null; onSeed
         i.src = url;
         setTimeout(() => res("image timeout"), 8000);
       });
-      let fetched = "";
-      try {
-        const r = await fetch(url, { method: "HEAD" });
-        fetched = `fetch ${r.status}`;
-      } catch (err) {
-        fetched = `fetch failed: ${String(err)}`;
-      }
       const csp = document.querySelector('meta[http-equiv="Content-Security-Policy"]')?.getAttribute("content") ?? "(no meta csp)";
-      const out = [`url: ${url}`, img, fetched, `origin: ${location.origin}`, `csp: ${csp}`, `ua: ${navigator.userAgent}`].join("\n");
+      const out = [`url: ${url}`, img, `origin: ${location.origin}`, `csp: ${csp}`, `ua: ${navigator.userAgent}`].join("\n");
       setEntries((e) => e.map((x) => (x.id === id ? { ...x, out, code: 0, ms: performance.now() - t0, running: false } : x)));
       return;
     }
@@ -119,19 +115,29 @@ export function Terminal({ seed, onSeedConsumed }: { seed: string | null; onSeed
   };
 
   const isWrite = WRITE.test(line);
+  const copy = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success("Copied");
+    } catch {
+      /* ignore */
+    }
+  };
 
   return (
     <div className="stack" style={{ height: "100%" }}>
-      <PageHeader
-        title="Terminal"
-        subtitle={account?.demo ? "Demo business: read commands are answered from the demo dataset." : "Runs the real whop CLI as you. Every command hits production."}
-        actions={
-          <Button size="1" variant="ghost" color="gray" onClick={() => setEntries([])}>
-            Clear <Kbd size="1">⌘L</Kbd>
-          </Button>
-        }
-      />
-      <div className="terminal">
+      {!embedded && (
+        <PageHeader
+          title="Terminal"
+          subtitle={account?.demo ? "Demo business: read commands are answered from the demo dataset." : "Runs the real whop CLI as you. Every command hits production."}
+          actions={
+            <Button size="1" variant="ghost" color="gray" onClick={() => setEntries([])}>
+              Clear <Kbd size="1">⌘L</Kbd>
+            </Button>
+          }
+        />
+      )}
+      <div className="terminal" data-embedded={!!embedded}>
         <TextField.Root size="3" variant="surface" color={isWrite ? "amber" : undefined}>
           <TextField.Slot>
             <Text size="2" color="gray" className="mono">
@@ -141,7 +147,7 @@ export function Terminal({ seed, onSeedConsumed }: { seed: string | null; onSeed
           <TextField.Input ref={inputRef} className="terminal-input" placeholder="whop products list" value={line} onChange={(e) => setLine(e.target.value)} onKeyDown={onKey} autoFocus spellCheck={false} autoCapitalize="off" autoCorrect="off" />
           <TextField.Slot>
             <Text size="1" color="gray">
-              {isWrite ? "writes to production" : "↵ to run · ↑ history"}
+              {isWrite ? "writes to production" : "↵ to run · ↑ history · ⌘L clear"}
             </Text>
           </TextField.Slot>
         </TextField.Root>
@@ -152,22 +158,50 @@ export function Terminal({ seed, onSeedConsumed }: { seed: string | null; onSeed
                 {`# Try:\n#   whop products list --format json\n#   whop stats list\n#   whop memberships list --status active\n#   whop --llms   (the CLI manifest for agents)`}
               </span>
             )}
-            {entries.map((e) => (
-              <div key={e.id} style={{ marginBottom: 12 }}>
-                <span className="t-cmd">$ {e.command}</span>
-                {e.running ? (
-                  <div className="t-muted">running…</div>
-                ) : (
-                  <>
-                    {e.out ? <div>{e.out.trimEnd()}</div> : null}
-                    {e.err ? <div className="t-err">{e.err.trimEnd()}</div> : null}
-                    <div className="t-muted">
-                      exit {e.code} · {Math.round(e.ms ?? 0)}ms
-                    </div>
-                  </>
-                )}
-              </div>
-            ))}
+            {entries.map((e) => {
+              const lines = (e.out ?? "").split("\n");
+              const long = lines.length > 40;
+              const shown = e.open || !long ? e.out ?? "" : lines.slice(0, 30).join("\n");
+              return (
+                <div key={e.id} className="t-entry">
+                  <div className="t-head">
+                    <span className="t-cmd">$ {e.command}</span>
+                    <span className="t-actions">
+                      <Tooltip content="Copy command">
+                        <IconButton size="1" variant="ghost" color="gray" onClick={() => copy(e.command)} aria-label="Copy command">
+                          <CopyIcon />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip content="Run again">
+                        <IconButton size="1" variant="ghost" color="gray" onClick={() => run(e.command)} aria-label="Run again">
+                          <ReloadIcon />
+                        </IconButton>
+                      </Tooltip>
+                    </span>
+                  </div>
+                  {e.running ? (
+                    <div className="t-muted">running…</div>
+                  ) : (
+                    <>
+                      {e.out ? (
+                        <div>
+                          <JsonText text={shown.trimEnd()} />
+                          {long && !e.open && (
+                            <button className="tool-more" type="button" onClick={() => setEntries((es) => es.map((x) => (x.id === e.id ? { ...x, open: true } : x)))}>
+                              Show all {lines.length} lines
+                            </button>
+                          )}
+                        </div>
+                      ) : null}
+                      {e.err ? <div className="t-err">{e.err.trimEnd()}</div> : null}
+                      <div className="t-muted">
+                        exit {e.code} · {Math.round(e.ms ?? 0)}ms
+                      </div>
+                    </>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </Card>
       </div>

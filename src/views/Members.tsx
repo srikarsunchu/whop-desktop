@@ -1,4 +1,4 @@
-import { Button, DropdownMenu, IconButton, SegmentedControl, Table, Text, toast } from "frosted-ui";
+import { Button, DropdownMenu, IconButton, SegmentedControl, Select, Table, Text, toast } from "frosted-ui";
 import { DotsHorizontalIcon } from "@radix-ui/react-icons";
 import { useState } from "react";
 import { ConfirmDialog } from "../components/ConfirmDialog";
@@ -74,13 +74,16 @@ export function Members({ runInTerminal }: { runInTerminal: (c: string) => void 
           query={memberships}
           onRun={runInTerminal}
           actions={
-            <div style={{ display: "flex", gap: 4, flexWrap: "wrap", justifyContent: "flex-end" }}>
-              {STATUSES.map((s) => (
-                <Button key={s} size="1" variant={status === s ? "soft" : "ghost"} color="gray" onClick={() => setStatus(s)}>
-                  {s.replace("_", " ")}
-                </Button>
-              ))}
-            </div>
+            <Select.Root size="1" value={status} onValueChange={(v: string | null) => v && setStatus(v as (typeof STATUSES)[number])}>
+              <Select.Trigger variant="surface" color="gray" placeholder="Status" />
+              <Select.Content>
+                {STATUSES.map((s) => (
+                  <Select.Item key={s} value={s}>
+                    {s === "all" ? "All statuses" : s.replace("_", " ")}
+                  </Select.Item>
+                ))}
+              </Select.Content>
+            </Select.Root>
           }
         >
           <QueryBody

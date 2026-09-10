@@ -23,6 +23,13 @@ export function Overview({ runInTerminal, onNavigate }: { runInTerminal: (c: str
   const balance = useWhop<BalanceReport>(["ledgers", "report", "--report_type", "balance_summary"]);
   const activity = useWhop<Page<LedgerEntry>>(["ledgers", "list"]);
   const actions = useWhop<Page<RecommendedAction>>(["recommended-actions", "list"]);
+  const paidActive = useWhop<StatsSeries>(["stats", "get", "paid_active_members", "--from", from, "--to", to, "--interval", "day"]);
+  const newUsers = useWhop<StatsSeries>(["stats", "get", "new_users", "--from", from, "--to", to, "--interval", "day"]);
+  const balanceSeries = useWhop<StatsSeries>(["stats", "get", "account_balance", "--from", from, "--to", to, "--interval", "day"]);
+  const spark = (s?: StatsSeries) => {
+    const pts = s?.data?.points?.map((p) => p.value ?? 0) ?? [];
+    return pts.some((v) => v) ? pts : undefined;
+  };
 
   const sum = (s?: StatsSeries) => s?.data?.points?.reduce((a, p) => a + (p.value || 0), 0);
   const rev30 = sum(revenue.data);
@@ -53,10 +60,10 @@ export function Overview({ runInTerminal, onNavigate }: { runInTerminal: (c: str
       />
 
       <div className="grid-4">
-        <StatTile label="Net revenue" value={rev30} format={{ style: "currency", currency: "USD", maximumFractionDigits: 0 }} delta={revenue.error ? null : delta} loading={revenue.loading} note={revenue.error ? revenue.error.code : undefined} />
-        <StatTile label="Active memberships" value={active.error ? null : count(active.data)} loading={active.loading} note={active.error ? active.error.code : plus(active.data)} />
-        <StatTile label="Members" value={members.error ? null : count(members.data)} loading={members.loading} note={members.error ? members.error.code : plus(members.data)} />
-        <StatTile label="Available balance" value={balance.error ? null : available} format={{ style: "currency", currency: "USD" }} loading={balance.loading} note={balance.error ? balance.error.code : "ready to pay out"} />
+        <StatTile label="Net revenue" value={rev30} format={{ style: "currency", currency: "USD", maximumFractionDigits: 0 }} delta={revenue.error ? null : delta} loading={revenue.loading} note={revenue.error ? revenue.error.code : undefined} spark={spark(revenue.data)} sparkLabel="net revenue, daily" />
+        <StatTile label="Active memberships" value={active.error ? null : count(active.data)} loading={active.loading} note={active.error ? active.error.code : plus(active.data) ?? "paid and active"} spark={spark(paidActive.data)} sparkLabel="paid active members, daily" />
+        <StatTile label="Members" value={members.error ? null : count(members.data)} loading={members.loading} note={members.error ? members.error.code : plus(members.data) ?? "new users trend"} spark={spark(newUsers.data)} sparkLabel="new users, daily" />
+        <StatTile label="Available balance" value={balance.error ? null : available} format={{ style: "currency", currency: "USD" }} loading={balance.loading} note={balance.error ? balance.error.code : "ready to pay out"} spark={spark(balanceSeries.data)} sparkLabel="balance, daily" />
       </div>
 
       <Panel title="Net revenue" query={revenue} onRun={runInTerminal}>

@@ -15,6 +15,8 @@
 //! * Tray icon, global hotkey, downloads, notifications and the menu are all
 //!   driven from Rust.
 
+pub mod assistant;
+
 use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -615,6 +617,11 @@ fn launch_hints() -> LaunchHints {
     }
 }
 
+/// Used by the assistant module to point the shim at the real CLI.
+pub fn whop_binary_path_pub() -> Option<String> {
+    whop_binary().map(|p| p.to_string_lossy().into_owned())
+}
+
 #[tauri::command]
 fn whop_binary_path() -> Option<String> {
     whop_binary().map(|p| p.to_string_lossy().into_owned())
@@ -972,6 +979,7 @@ pub fn run() {
         // Global shortcut plugin — registered and handled purely from Rust.
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .manage(AppState::default())
+        .manage(assistant::AssistantState::default())
         .menu(build_menu)
         .on_menu_event(handle_menu_event)
         .setup(|app| {
@@ -997,7 +1005,11 @@ pub fn run() {
             whop_binary_path,
             launch_hints,
             open_web_window,
-            open_external
+            open_external,
+            assistant::assistant_start,
+            assistant::assistant_stop,
+            assistant::claude_binary_path,
+            assistant::write_demo_fixtures
         ])
         .build(tauri::generate_context!())
         .expect("error while building the Whop Desktop application")

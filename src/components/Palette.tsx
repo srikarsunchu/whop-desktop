@@ -46,7 +46,7 @@ export function Palette({ open, onOpenChange, onNavigate, onRun }: { open: boole
       <Dialog.Content size="2" className="palette-content" aria-label="Command palette">
         <div className="palette">
           <Command label="Command palette" shouldFilter={!/^whop\b/i.test(typed)}>
-            <Command.Input value={query} onValueChange={setQuery} placeholder="Jump to a section or type a whop command…" autoFocus />
+            <Command.Input value={query} onValueChange={setQuery} placeholder="Jump to a section, switch business, or type a whop command…" autoFocus />
             <Command.List>
               <Command.Empty>No matches. Type a full command starting with whop.</Command.Empty>
               {looksLikeCommand && typed && (

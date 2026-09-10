@@ -39,7 +39,14 @@ function series(metric: string, from: number, to: number): { timestamp: number; 
         v = Math.round((6 + r() * 11) * weekend);
         break;
       case "active_memberships":
+      case "paid_active_members":
         v = 1180 + Math.round(i * 3.4 + r() * 6);
+        break;
+      case "new_users":
+        v = Math.round((14 + r() * 22) * weekend);
+        break;
+      case "account_balance":
+        v = 12000 + i * 240 + r() * 900 - (i % 7 === 6 ? 4200 : 0);
         break;
       case "visitors":
         v = Math.round((1900 + r() * 1400) * weekend);

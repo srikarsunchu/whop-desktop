@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { Sidebar, type ViewId } from "./components/Sidebar";
+import { NAV, Sidebar, type ViewId } from "./components/Sidebar";
 import { Palette } from "./components/Palette";
 import { AccountContext, runWhopJson, runWhopRaw, type Account } from "./lib/whop";
 import { DEMO_ACCOUNT } from "./lib/demo";
@@ -11,7 +11,7 @@ import { Members } from "./views/Members";
 import { Products } from "./views/Products";
 import { People } from "./views/People";
 import { Apps } from "./views/Apps";
-import { Terminal } from "./views/Terminal";
+import { Assistant } from "./views/Assistant";
 import { AccountView } from "./views/Account";
 
 interface AuthStatus {
@@ -24,7 +24,10 @@ const LS_VIEW = "whopdesktop.view";
 const LS_ACCOUNT = "whopdesktop.account";
 
 export function App() {
-  const [view, setViewState] = useState<ViewId>(() => (localStorage.getItem(LS_VIEW) as ViewId) || "overview");
+  const [view, setViewState] = useState<ViewId>(() => {
+    const v = localStorage.getItem(LS_VIEW) as string | null;
+    return (v === "terminal" ? "assistant" : (v as ViewId)) || "overview";
+  });
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [terminalSeed, setTerminalSeed] = useState<string | null>(null);
 
@@ -98,11 +101,21 @@ export function App() {
 
   // ⌘K from the native menu, and from the keyboard.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     const un = listen("palette", () => setPaletteOpen(true));
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
         setPaletteOpen((o) => !o);
+        return;
+      }
+      // ⌘1…⌘8 jump between views.
+      if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && /^[1-8]$/.test(e.key)) {
+        const target = NAV[Number(e.key) - 1];
+        if (target) {
+          e.preventDefault();
+          setView(target.id);
+        }
       }
     };
     window.addEventListener("keydown", onKey);
@@ -110,12 +123,12 @@ export function App() {
       window.removeEventListener("keydown", onKey);
       un.then((f) => f()).catch(() => {});
     };
-  }, []);
+  }, [setView]);
 
   const runInTerminal = useCallback(
     (command: string) => {
       setTerminalSeed(command);
-      setView("terminal");
+      setView("assistant");
     },
     [setView],
   );
@@ -142,8 +155,8 @@ export function App() {
     case "apps":
       page = <Apps runInTerminal={runInTerminal} />;
       break;
-    case "terminal":
-      page = <Terminal seed={terminalSeed} onSeedConsumed={() => setTerminalSeed(null)} />;
+    case "assistant":
+      page = <Assistant seed={terminalSeed} onSeedConsumed={() => setTerminalSeed(null)} />;
       break;
     case "account":
       page = <AccountView runInTerminal={runInTerminal} />;

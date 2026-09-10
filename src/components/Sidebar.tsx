@@ -4,7 +4,7 @@ import {
   BarChartIcon,
   CheckIcon,
   ChevronDownIcon,
-  CodeIcon,
+  ChatBubbleIcon,
   CubeIcon,
   EyeOpenIcon,
   GearIcon,
@@ -17,7 +17,7 @@ import {
 import { invoke } from "@tauri-apps/api/core";
 import { useAccount } from "../lib/whop";
 
-export type ViewId = "overview" | "money" | "members" | "products" | "people" | "apps" | "terminal" | "account";
+export type ViewId = "overview" | "money" | "members" | "products" | "people" | "apps" | "assistant" | "account";
 
 export const NAV: { id: ViewId; label: string; icon: React.ComponentType<{ className?: string }>; hint?: string }[] = [
   { id: "overview", label: "Overview", icon: HomeIcon },
@@ -26,7 +26,7 @@ export const NAV: { id: ViewId; label: string; icon: React.ComponentType<{ class
   { id: "products", label: "Products", icon: CubeIcon },
   { id: "people", label: "People", icon: EyeOpenIcon },
   { id: "apps", label: "Apps", icon: RocketIcon },
-  { id: "terminal", label: "Terminal", icon: CodeIcon },
+  { id: "assistant", label: "Assistant", icon: ChatBubbleIcon },
   { id: "account", label: "Account", icon: GearIcon },
 ];
 
@@ -99,7 +99,7 @@ export function Sidebar({ view, onNavigate, onOpenPalette }: { view: ViewId; onN
           </span>
         </button>
         {NAV.map(({ id, label, icon: Icon }) => (
-          <button key={id} className="nav-item" type="button" data-active={view === id} onClick={() => onNavigate(id)}>
+          <button key={id} className="nav-item" type="button" data-active={view === id} onClick={() => onNavigate(id)} title={`${label} ⌘${NAV.findIndex((n) => n.id === id) + 1}`}>
             <Icon />
             {label}
           </button>

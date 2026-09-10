@@ -14,6 +14,8 @@ import { People } from "./views/People";
 import { Apps } from "./views/Apps";
 import { Assistant } from "./views/Assistant";
 import { Ads } from "./views/Ads";
+import { useStudioJobs } from "./lib/studio-jobs";
+import { Welcome } from "./components/Welcome";
 import { Studio } from "./views/Studio";
 import { Growth } from "./views/Growth";
 import { AccountView } from "./views/Account";
@@ -28,6 +30,8 @@ const LS_VIEW = "whopdesktop.view";
 const LS_ACCOUNT = "whopdesktop.account";
 
 export function App() {
+  useStudioJobs();
+  const [welcomeOpen,setWelcomeOpen]=useState(()=>localStorage.getItem("whopdesktop.welcome.v1")!=="done");
   const [view, setViewState] = useState<ViewId>(() => {
     const v = localStorage.getItem(LS_VIEW) as string | null;
     return (v === "terminal" ? "assistant" : (v as ViewId)) || "overview";
@@ -174,7 +178,7 @@ export function App() {
       page = <Ads runInTerminal={runInTerminal} ask={ask} />;
       break;
     case "studio":
-      page = <Studio runInTerminal={runInTerminal} ask={ask} />;
+      page = <Studio onOpenAds={() => setView("ads")} />;
       break;
     case "apps":
       page = <Apps runInTerminal={runInTerminal} ask={ask} />;
@@ -194,6 +198,7 @@ export function App() {
 
   return (
     <AccountContext.Provider value={ctx}>
+      <Welcome open={welcomeOpen} onDemo={()=>{setAccount(DEMO_ACCOUNT);setView('overview');localStorage.setItem('whopdesktop.welcome.v1','done');setWelcomeOpen(false);}} onConnected={()=>{const real=accounts.find(a=>!a.demo);if(real){setAccount(real);setView('overview');localStorage.setItem('whopdesktop.welcome.v1','done');setWelcomeOpen(false);}}}/>
       <div className="app">
         <Sidebar view={view} onNavigate={setView} onOpenPalette={() => setPaletteOpen(true)} />
         <main className={`content${view === "assistant" ? " content-assistant" : ""}`}>

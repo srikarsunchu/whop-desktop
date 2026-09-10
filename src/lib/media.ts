@@ -1,3 +1,4 @@
+import type { CreativeContext } from "./studio-context";
 /** Studio's response contract and state transitions, independent of the view. */
 export interface Generation {
   id: string;
@@ -12,6 +13,11 @@ export interface Generation {
   createdAt: number;
   accountId: string;
   sample?: boolean;
+  parentId?: string;
+  context?: CreativeContext;
+  exportedAt?: number;
+  adDraftId?: string;
+  referenceIds?: string[];
 }
 
 type JsonRecord = Record<string, unknown>;
@@ -20,10 +26,11 @@ const str = (v: unknown) => typeof v === "string" && v.length ? v : undefined;
 export const pendingMedia = (g: Generation) => ["queued", "pending", "processing", "resolving"].includes(g.status);
 const failures = ["failed", "canceled", "cancelled"];
 
-export function mediaArgs(input: { type: "image" | "video"; prompt: string; accountId?: string; demo: boolean; duration: string; resolution: string; requestKey: string }) {
+export function mediaArgs(input: { type: "image" | "video"; prompt: string; accountId?: string; demo: boolean; duration: string; resolution: string; requestKey: string; referenceIds?: string[] }) {
   return ["media", "generate", "--type", input.type, "--prompt", input.prompt.trim(),
     ...(input.type === "video" ? ["--duration_seconds", input.duration, "--resolution", input.resolution] : []),
     ...(!input.demo && input.accountId ? ["--account_id", input.accountId] : []),
+    ...(input.referenceIds?.length ? ["--reference_media", JSON.stringify(input.referenceIds.slice(0, 4))] : []),
     "--idempotency-key", input.requestKey];
 }
 

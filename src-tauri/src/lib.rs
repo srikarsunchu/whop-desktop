@@ -398,6 +398,7 @@ fn show_or_create_main(app: &AppHandle) -> tauri::Result<()> {
     }
 
     WebviewWindowBuilder::new(app, MAIN_LABEL, WebviewUrl::App("index.html".into()))
+        .disable_drag_drop_handler()
         .title(APP_NAME)
         .inner_size(1360.0, 860.0)
         .min_inner_size(960.0, 640.0)
@@ -648,6 +649,74 @@ fn open_external(url: String) -> Result<(), String> {
         }
         other => Err(format!("refusing to open scheme {other}")),
     }
+}
+
+// Studio transfers run outside the UI thread. URLs are HTTPS only and curl never follows redirects.
+fn studio_https(url: &str) -> Result<(), String> {
+    let parsed = url.parse::<Url>().map_err(|e| e.to_string())?;
+    if parsed.scheme() != "https" || parsed.host_str().is_none() { return Err("An HTTPS media URL is required".into()); }
+    Ok(())
+}
+
+#[tauri::command]
+async fn studio_read_image(url: String) -> Result<Vec<u8>, String> {
+    studio_https(&url)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let output = Command::new("/usr/bin/curl").args(["--fail", "--silent", "--show-error", "--max-time", "60", "--max-filesize", "20000000", "--proto", "=https", &url]).output().map_err(|e| e.to_string())?;
+        if !output.status.success() { return Err("Could not download the image. Refresh its URL and try again.".into()); }
+        Ok(output.stdout)
+    }).await.map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+async fn studio_upload_image(filename: String, bytes: Vec<u8>) -> Result<String, String> {
+    if bytes.is_empty() || bytes.len() > 15_000_000 { return Err("Choose an image under 15 MB".into()); }
+    let ext = std::path::Path::new(&filename).extension().and_then(|x| x.to_str()).unwrap_or("").to_lowercase();
+    let mime = match ext.as_str() { "png" => "image/png", "jpg" | "jpeg" => "image/jpeg", "webp" => "image/webp", _ => return Err("Choose a PNG, JPEG or WebP image".into()) };
+    tauri::async_runtime::spawn_blocking(move || {
+        use std::io::Write;
+        let response = run_whop_json(vec!["files".into(), "create".into(), "--filename".into(), filename, "--visibility".into(), "private".into()])?;
+        let file = response.get("data").unwrap_or(&response);
+        let id = file["id"].as_str().ok_or("No file ID returned")?.to_string();
+        let url = file["upload_url"].as_str().ok_or("No upload URL returned")?;
+        studio_https(url)?;
+        let mut cmd = Command::new("/usr/bin/curl");
+        cmd.args(["--fail", "--silent", "--show-error", "--max-time", "120", "--proto", "=https", "-X", "PUT", "--data-binary", "@-"]);
+        let mut has_content_type = false;
+        if let Some(headers) = file["upload_headers"].as_object() {
+            for (key, value) in headers {
+                let value = value.as_str().ok_or("Invalid upload header")?;
+                if key.contains(['\r','\n']) || value.contains(['\r','\n']) { return Err("Invalid upload header".into()); }
+                has_content_type |= key.eq_ignore_ascii_case("content-type");
+                cmd.args(["-H", &format!("{key}: {value}")]);
+            }
+        }
+        if !has_content_type { cmd.args(["-H", &format!("Content-Type: {mime}")]); }
+        let mut child = cmd.arg(url).stdin(std::process::Stdio::piped()).stdout(std::process::Stdio::null()).stderr(std::process::Stdio::piped()).spawn().map_err(|e| e.to_string())?;
+        child.stdin.take().ok_or("Upload stream unavailable")?.write_all(&bytes).map_err(|e| e.to_string())?;
+        let output = child.wait_with_output().map_err(|e| e.to_string())?;
+        if !output.status.success() { return Err("Reference upload failed. Try again.".into()); }
+        Ok(id)
+    }).await.map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+async fn studio_save(app: AppHandle, bytes: Option<Vec<u8>>, url: Option<String>, video: bool) -> Result<String, String> {
+    let dir = app.path().download_dir().map_err(|e| e.to_string())?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let stamp = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_err(|e| e.to_string())?.as_nanos();
+        let path = dir.join(format!("whop-creative-{stamp}.{}", if video { "mp4" } else { "png" }));
+        if let Some(bytes) = bytes {
+            if bytes.len() > 40_000_000 { return Err("Export is too large".into()); }
+            std::fs::write(&path, bytes).map_err(|e| e.to_string())?;
+        } else if let Some(url) = url {
+            studio_https(&url)?;
+            let output = Command::new("/usr/bin/curl").args(["--fail", "--silent", "--show-error", "--max-time", "180", "--max-filesize", "500000000", "--proto", "=https", "-o"]).arg(&path).arg(url).output().map_err(|e| e.to_string())?;
+            if !output.status.success() { let _ = std::fs::remove_file(&path); return Err("Download failed. Refresh the asset and retry.".into()); }
+        } else { return Err("No export supplied".into()); }
+        Command::new("/usr/bin/open").arg("-R").arg(&path).spawn().map_err(|e| e.to_string())?;
+        Ok(path.to_string_lossy().into_owned())
+    }).await.map_err(|e| e.to_string())?
 }
 
 /// Shows + focuses the main window, or hides it if it is already frontmost.
@@ -1011,6 +1080,9 @@ pub fn run() {
             launch_hints,
             open_web_window,
             open_external,
+            studio_upload_image,
+            studio_read_image,
+            studio_save,
             assistant::assistant_start,
             assistant::assistant_stop,
             assistant::claude_binary_path,

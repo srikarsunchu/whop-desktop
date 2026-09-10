@@ -26,6 +26,11 @@ g=await resolveMedia({id:'media_test',status:'completed',file:{url:'javascript:a
 await assert.rejects(resolveMedia({},base,file),/no media ID/);
 const input={type:'video',prompt:'  Test  ',duration:'5',resolution:'1080p',demo:false,accountId:'biz_test',requestKey:'same-key'};
 const args=mediaArgs(input);assert.ok(!args.includes('--wait'));assert.equal(args[args.indexOf('--idempotency-key')+1],'same-key');assert.deepEqual(args,mediaArgs(input));assert.ok(args.includes('biz_test'));assert.ok(!mediaArgs({...input,type:'image'}).includes('--resolution'));
+const referenceArgs=mediaArgs({...input,referenceIds:['file_one','file_two']});
+assert.deepEqual(JSON.parse(referenceArgs[referenceArgs.indexOf('--reference_media')+1]),['file_one','file_two']);
+assert.ok(!mediaArgs({...input,referenceIds:[]}).includes('--reference_media'));
+const manyRefs=mediaArgs({...input,referenceIds:['a','b','c','d','e']});
+assert.equal(JSON.parse(manyRefs[manyRefs.indexOf('--reference_media')+1]).length,4);
 for(const type of ['image','video']) {
  const generated=demoResolve(['media','generate','--type',type,'--prompt','test']);
  const refreshed=demoResolve(['media','get',generated.id]);
@@ -35,3 +40,18 @@ const probe=JSON.parse(execFileSync('ffprobe',['-v','error','-show_entries','str
 assert.equal(probe.streams[0].codec_name,'h264');assert.equal(Number(probe.format.duration),5);
 execFileSync('ffmpeg',['-v','error','-i','public/demo/studio-sample.mp4','-f','null','-']);
 console.log('Media checks passed: file resolution, delayed readiness, failures, wrong types, envelopes, idempotency, sample refresh, and 5s H.264 decode.');
+const {generationBrief,EMPTY_CONTEXT,validDestination}=await load('src/lib/studio-context.ts');
+assert.ok(generationBrief('Show the community',{...EMPTY_CONTEXT,format:'story'}).includes('vertical 9:16'));
+assert.ok(generationBrief('x'.repeat(2000),EMPTY_CONTEXT).length<=2000);
+assert.equal(validDestination('javascript:alert(1)'),false);
+assert.equal(validDestination('https://whop.com/example'),true);
+const {renderCreative,DEFAULT_FINISH}=await load('src/lib/studio-canvas.ts');
+let draw=[];
+const ctx={drawImage:(...args)=>{draw=args;},measureText:()=>({width:0})};
+const canvas={width:0,height:0,getContext:()=>ctx};
+const source={naturalWidth:2000,naturalHeight:1000};
+renderCreative(canvas,source,{...DEFAULT_FINISH,format:'square',offsetX:0});
+assert.equal(canvas.width,1080);assert.equal(canvas.height,1080);assert.ok(draw[1]===0);
+renderCreative(canvas,source,{...DEFAULT_FINISH,format:'square',offsetX:100});
+assert.equal(draw[1],-1080);assert.equal(draw[3],2160);
+console.log('Studio workflow checks passed: destination validation, prompt length/placement and crop positioning.');

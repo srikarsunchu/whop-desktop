@@ -2,6 +2,7 @@ import { Button, Callout, DropdownMenu, IconButton, Table, Text, toast } from "f
 import { DotsHorizontalIcon, Link2Icon } from "@radix-ui/react-icons";
 import { invoke } from "@tauri-apps/api/core";
 import { useState } from "react";
+import { StudioAdDrafts } from "../components/StudioAdDrafts";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { EmptyPanel, PageHeader, Panel, QueryBody } from "../components/Panel";
 import { StatTile } from "../components/StatTile";
@@ -128,6 +129,8 @@ export function Ads({ runInTerminal, ask }: { runInTerminal: (c: string) => void
           </>
         }
       />
+
+      <StudioAdDrafts ask={ask} />
 
       {social.data && connected.length === 0 && !social.error && (
         <Callout.Root color="amber">

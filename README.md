@@ -32,7 +32,7 @@ Every screen is a `whop …` command with a face.
 | **Products** | `products list` with default plan price, member count, visibility; publish / unpublish / delete, open store page, list plans |
 | **People** | `people list`: location, device, events, purchases, LTV, last seen |
 | **Ads** | Meta campaigns from `ad-campaigns list` with 30-day spend, impressions, clicks, results and cost per result; ad groups, ads, audiences, connected social accounts; pause / unpause / duplicate / delete, retry payment; "Plan a campaign with Claude" |
-| **Studio** | Whop's AI media: `media generate --type image\|video --prompt … --wait true`, billed from your balance; gallery of results with file ids ready for `ads create --creatives` |
+| **Studio** | Reference-based image/video generation, editable typography and cropping, named creative history, and a local ad-draft handoff; live generation is billed from your Whop balance |
 | **Apps** | `apps list`, open the hosted domain, builds and logs, deploy preview, and **blueprints**: clone any whop.com/blueprints app with `apps init --template app_…` |
 | **Growth** | bounties (`bounties list`: pool, paid out, submissions; cancel), referred businesses and the partner leaderboard (`partners *`) |
 | **Assistant** | a Claude chat that operates the business through the CLI: every command it runs shows as a card with its output; writes stay blocked until you allow them. **Raw CLI** mode is one toggle away: history (↑), ⌘L clear, JSON highlighting, copy and re-run |
@@ -89,20 +89,13 @@ whop quickstart   # pick the business the CLI should use
 The app looks for `whop` in `$WHOP_BIN`, `PATH`, `~/.local/bin`,
 `/opt/homebrew/bin` and `/usr/local/bin`.
 
-## Install (unsigned build)
+## Download and first launch
 
-There is no signed release. Build it yourself (below), then:
+Visit [Whop Desktop](https://whop-desktop.sunchusrikar.chatgpt.site) for the product demo and download status.
 
-```bash
-cp -R "src-tauri/target/release/bundle/macos/Whop Desktop.app" /Applications/
-```
+The first public Mac download is being prepared for Developer ID signing and Apple notarization. A DMG is not available yet; the page links to releases once one is ready. The initial binary targets Apple Silicon (M1 and newer), macOS 11+.
 
-If you got the `.app` from somewhere other than your own build, macOS will say
-it is damaged. Clear the quarantine flag, or right-click > Open:
-
-```bash
-xattr -dr com.apple.quarantine "/Applications/Whop Desktop.app"
-```
+On first launch, choose **Explore the demo** to open the fictional Northwind Picks business without signing in. **Connect my business** explains Whop CLI installation and sign-in and checks the existing local session. The Assistant separately requires Claude Code installed and signed in. Studio's demo previews are labeled samples, not generated results.
 
 ## Build
 

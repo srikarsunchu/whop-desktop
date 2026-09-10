@@ -1,5 +1,6 @@
 import { Command } from "cmdk";
-import { Avatar, Dialog, Kbd } from "frosted-ui";
+import { Dialog, Kbd } from "frosted-ui";
+import { BizAvatar } from "./BizAvatar";
 import { invoke } from "@tauri-apps/api/core";
 import { CheckIcon, CodeIcon, LightningBoltIcon, OpenInNewWindowIcon } from "@radix-ui/react-icons";
 import { useEffect, useState } from "react";
@@ -74,7 +75,7 @@ export function Palette({ open, onOpenChange, onNavigate, onRun }: { open: boole
               <Command.Group heading="Switch business">
                 {accounts.map((a) => (
                   <Command.Item key={a.id} value={`switch ${a.title} ${a.id}`} onSelect={() => go(() => setAccount(a))}>
-                    <Avatar size="1" shape="square" color={a.demo ? "gray" : "orange"} fallback={a.title} src={a.logo ?? undefined} alt="" />
+                    <BizAvatar account={a} size="1" />
                     <span>{a.title}</span>
                     <span className="p-right" style={{ color: "var(--gray-9)", display: "flex", alignItems: "center", gap: 6 }}>
                       {a.demo ? "demo" : a.id}

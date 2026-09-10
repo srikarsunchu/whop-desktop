@@ -1,4 +1,5 @@
-import { Avatar, DropdownMenu, Kbd, Text } from "frosted-ui";
+import { DropdownMenu, Kbd, Text } from "frosted-ui";
+import { BizAvatar } from "./BizAvatar";
 import {
   BarChartIcon,
   CheckIcon,
@@ -41,7 +42,7 @@ export function Sidebar({ view, onNavigate, onOpenPalette }: { view: ViewId; onN
         <DropdownMenu.Root>
           <DropdownMenu.Trigger>
             <button className="sidebar-switcher-button" type="button" aria-label="Switch business">
-              <Avatar size="2" shape="square" color={account?.demo ? "gray" : "orange"} fallback={account?.title ?? "W"} src={account?.logo ?? undefined} alt="" />
+              <BizAvatar account={account} size="2" />
               <span className="sidebar-switcher-text">
                 <Text size="2" weight="medium">
                   {account?.title ?? "Choose a business"}
@@ -60,7 +61,7 @@ export function Sidebar({ view, onNavigate, onOpenPalette }: { view: ViewId; onN
                 .filter((a) => !a.demo)
                 .map((a) => (
                   <DropdownMenu.Item key={a.id} onClick={() => setAccount(a)}>
-                    <Avatar size="1" shape="square" color="orange" fallback={a.title} src={a.logo ?? undefined} alt="" />
+                    <BizAvatar account={a} size="1" />
                     <span style={{ flex: 1 }}>{a.title}</span>
                     {account?.id === a.id && <CheckIcon />}
                   </DropdownMenu.Item>
@@ -74,7 +75,7 @@ export function Sidebar({ view, onNavigate, onOpenPalette }: { view: ViewId; onN
                 .filter((a) => a.demo)
                 .map((a) => (
                   <DropdownMenu.Item key={a.id} onClick={() => setAccount(a)}>
-                    <Avatar size="1" shape="square" color="gray" fallback={a.title} />
+                    <BizAvatar account={a} size="1" />
                     <span style={{ flex: 1 }}>{a.title}</span>
                     {account?.id === a.id && <CheckIcon />}
                   </DropdownMenu.Item>

@@ -3,7 +3,9 @@
 // Nothing here is real: names, ids and amounts are invented.
 
 export const DEMO_ACCOUNT_ID = "biz_demoNorthwind";
-export const DEMO_ACCOUNT = { id: DEMO_ACCOUNT_ID, title: "Northwind Picks", demo: true, route: "northwind-picks" };
+export const DEMO_LOGO =
+  "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCI+PHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiByeD0iMTQiIGZpbGw9IiMwZjJhMWMiLz48Y2lyY2xlIGN4PSIzMiIgY3k9IjMyIiByPSIxOSIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjM2RkNjhjIiBzdHJva2Utd2lkdGg9IjQiLz48Y2lyY2xlIGN4PSIzMiIgY3k9IjMyIiByPSIxMCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjM2RkNjhjIiBzdHJva2Utd2lkdGg9IjQiLz48Y2lyY2xlIGN4PSIzMiIgY3k9IjMyIiByPSIzLjUiIGZpbGw9IiMzZGQ2OGMiLz48cGF0aCBkPSJNMzIgOHYxME0zMiA0NnYxME04IDMyaDEwTTQ2IDMyaDEwIiBzdHJva2U9IiMzZGQ2OGMiIHN0cm9rZS13aWR0aD0iNCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+PC9zdmc+";
+export const DEMO_ACCOUNT = { id: DEMO_ACCOUNT_ID, title: "Northwind Picks", demo: true, route: "northwind-picks", logo: DEMO_LOGO };
 
 const DAY = 86_400;
 const now = () => Math.floor(Date.now() / 1000);

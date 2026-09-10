@@ -507,3 +507,21 @@ tr[data-clickable] {
 .fui-ToastViewport > * {
   pointer-events: auto;
 }
+
+/* Business logo (real image); sizes match Frosted Avatar size 1 / 2. */
+.biz-logo {
+  display: block;
+  flex: none;
+  object-fit: cover;
+  background: var(--gray-3);
+  border-radius: var(--radius-3);
+}
+.biz-logo[data-size="1"] {
+  width: 24px;
+  height: 24px;
+}
+.biz-logo[data-size="2"] {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-4);
+}

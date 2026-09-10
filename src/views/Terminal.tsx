@@ -49,6 +49,32 @@ export function Terminal({ seed, onSeedConsumed }: { seed: string | null; onSeed
   const run = async (raw: string) => {
     const cmd = raw.trim();
     if (!cmd) return;
+    if (cmd.startsWith(":diag")) {
+      // Built-in diagnostics: image loading + effective CSP inside this webview.
+      const url = cmd.split(/\s+/)[1] ?? "https://assets-2-prod.whop.com/public/uploads/2026-09-10/c99fb4dd-f502-4453-820c-551dedc167bf/image.png";
+      const id = ++counter.current;
+      setEntries((e) => [...e, { id, command: cmd, running: true }]);
+      setLine("");
+      const t0 = performance.now();
+      const img = await new Promise<string>((res) => {
+        const i = new Image();
+        i.onload = () => res(`image loaded ${i.naturalWidth}x${i.naturalHeight}`);
+        i.onerror = () => res("image error");
+        i.src = url;
+        setTimeout(() => res("image timeout"), 8000);
+      });
+      let fetched = "";
+      try {
+        const r = await fetch(url, { method: "HEAD" });
+        fetched = `fetch ${r.status}`;
+      } catch (err) {
+        fetched = `fetch failed: ${String(err)}`;
+      }
+      const csp = document.querySelector('meta[http-equiv="Content-Security-Policy"]')?.getAttribute("content") ?? "(no meta csp)";
+      const out = [`url: ${url}`, img, fetched, `origin: ${location.origin}`, `csp: ${csp}`, `ua: ${navigator.userAgent}`].join("\n");
+      setEntries((e) => e.map((x) => (x.id === id ? { ...x, out, code: 0, ms: performance.now() - t0, running: false } : x)));
+      return;
+    }
     let args = argv(cmd);
     if (args[0] === "whop") args = args.slice(1);
     if (args.length === 0) return;

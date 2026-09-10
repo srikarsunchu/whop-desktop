@@ -102,11 +102,15 @@ export function Assistant({ seed, onSeedConsumed }: { seed: string | null; onSee
             onToolResult: (id, output, isError) => patchTool(id, (c) => ({ ...c, output, isError, done: true, endedAt: Date.now() })),
             onAssistantMessage: () => {},
             onResult: (meta) =>
-              update(asstId, (m) => ({
-                ...m,
-                meta: { model: meta.model, costUsd: meta.costUsd, durationMs: meta.durationMs, turns: meta.turns },
-                error: meta.isError ? meta.result ?? "The assistant returned an error." : m.error,
-              })),
+              update(asstId, (m) => {
+                let error = m.error;
+                if (meta.isError) {
+                  if (meta.subtype === "error_max_turns") error = `Ran out of steps after ${meta.turns ?? "many"} tool calls without a final answer. Ask a narrower question, or say "continue".`;
+                  else if (meta.subtype === "error_max_budget_usd") error = "Stopped: the spend limit for one reply was reached.";
+                  else error = meta.result ?? "The assistant returned an error.";
+                }
+                return { ...m, meta: { model: meta.model, costUsd: meta.costUsd, durationMs: meta.durationMs, turns: meta.turns }, error };
+              }),
           },
         );
         setRun(handle);

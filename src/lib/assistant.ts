@@ -58,7 +58,7 @@ export interface Sink {
   onToolInput: (id: string, command: string, description?: string) => void;
   onToolResult: (id: string, output: string, isError: boolean) => void;
   onAssistantMessage: () => void; // a full assistant message was emitted (turn boundary)
-  onResult: (meta: ChatMessage["meta"] & { isError?: boolean; result?: string }) => void;
+  onResult: (meta: ChatMessage["meta"] & { isError?: boolean; result?: string; subtype?: string }) => void;
 }
 
 /** Feeds one stream-json line into the sink. Exported for tests and the demo path. */
@@ -126,6 +126,7 @@ export function handleLine(line: string, sink: Sink, partialInputs: Map<string, 
         turns: ev.num_turns,
         isError: !!ev.is_error,
         result: typeof ev.result === "string" ? ev.result : undefined,
+        subtype: typeof ev.subtype === "string" ? ev.subtype : undefined,
       });
       break;
   }

@@ -32,11 +32,24 @@ Every screen is a `whop …` command with a face.
 | **Products** | `products list` with default plan price, member count, visibility; publish / unpublish / delete, open store page, list plans |
 | **People** | `people list`: location, device, events, purchases, LTV, last seen |
 | **Apps** | `apps list`, open the hosted domain, `apps logs`, deploy preview |
-| **Terminal** | a real shell to the CLI with history (↑), ⌘L clear, and a warning tint on write commands |
+| **Assistant** | a Claude chat that operates the business through the CLI: every command it runs shows as a card with its output; writes stay blocked until you allow them. **Raw CLI** mode is one toggle away: history (↑), ⌘L clear, JSON highlighting, copy and re-run |
 | **Account** | `auth status`, `auth list` (switch profiles), `accounts get`, `team-members list`, CLI binary and version |
+
+### The assistant
+
+"Who is past due and how much is at risk?" runs `whop memberships list --status past_due`, reads the result, and answers in two sentences with a next step. Under the hood the app launches the **Claude Code CLI** you already have (`claude -p … --output-format stream-json`) with exactly one tool allowed, `Bash(whop:*)`, and streams its events into the chat. Requirements: Claude Code installed and signed in (`claude` once in a terminal).
+
+The `whop` that Claude sees is not the real binary. It is Whop Desktop itself running as a shim that:
+
+- **blocks every write** (create, update, delete, cancel, payouts, deploy, …) unless the "Allow writes" switch is on, returning a `WRITE_BLOCKED` result Claude relays to you;
+- **serves the demo business** from fixtures the app writes, so the demo works end to end without touching a real account;
+- passes reads straight through to the real CLI.
+
+Conversations are kept per business and resume with `--resume`, so follow-ups have context. Each reply shows model, turns, time and cost.
 
 Plus:
 
+- **⌘1 to ⌘8** jump between views.
 - **⌘K palette.** Jump to a view, switch business, run one of the common
   commands, or type any `whop …` line and hit ↵.
 - **Command strip** on every panel: copy it, run it in the Terminal, refresh,
@@ -48,6 +61,7 @@ Plus:
   storefront editing), with persistent login, download handling and the
   Google passkey workaround.
 - **Menu-bar icon**, **⌘⇧W** global show/hide, close-hides-the-window.
+- **Sparklines** on the KPI tiles (net revenue, paid active members, new users, balance) from `whop stats get … --interval day`.
 
 ## Design
 
@@ -119,6 +133,7 @@ WHOP_DESKTOP_ACCOUNT=biz_demoNorthwind WHOP_DESKTOP_VIEW=overview \
   `remote` allowlist). The only thing injected there is `src-tauri/js/init.js`,
   an app-authored script for CSS tweaks and the Google passkey fix.
 - Debug logs record command names only, never arguments or output.
+- The assistant's Claude process gets only `Bash(whop:*)`; file, web and sub-agent tools are disallowed, and `whop` resolves to the gated shim above.
 
 ## Known limitations
 

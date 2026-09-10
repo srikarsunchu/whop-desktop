@@ -223,11 +223,27 @@ fn system_prompt(a: &StartArgs) -> String {
     } else {
         "Writes are DISABLED: if a command returns WRITE_BLOCKED, tell the user to turn on \"Allow writes\" in the header and confirm, then retry. Never try to work around the block."
     };
+    let reference = if a.demo {
+        "DEMO COMMAND SET (only these return data; do not explore with --schema/--help/stats list): \
+`whop products list` (data[]: id,title,route,visibility,member_count,default_plan{plan_type,billing_period,initial_price{amount},renewal_price{amount}}); \
+`whop memberships list [--status active|trialing|past_due|canceling|paused|canceled|expired]` (data[]: id,status,created_at,renewal_period_end,product{title},plan{plan_type,renewal_price,initial_price},user{username,name}); \
+`whop members list`; `whop people list` (visitors: location,device,event_count,purchase_count,ltv,last_seen_at); `whop payouts list`; `whop disputes list`; `whop apps list`; `whop recommended-actions list`; \
+`whop ledgers list` (data[]: type payment|refund|payout, description, amount{amount}, created_at); `whop ledgers report --report_type balance_summary|income_statement` (rows[]: category|label, amount); \
+`whop stats get <net_revenue|gross_revenue|new_memberships|paid_active_members|new_users|account_balance|visitors> --from YYYY-MM-DD --to YYYY-MM-DD --interval day` (data.points[{timestamp,value}], daily). \
+There is no per-product revenue metric: derive it from memberships × plan price, or from ledger descriptions (\"<product> · <user>\"). Two or three commands usually answer any question."
+    } else {
+        "COMMAND REFERENCE (go straight to these; only use `--schema` if a command errors): \
+`whop products list`, `whop plans list --product_id <id>`, `whop memberships list [--status …] [--product_id <id>] [--first 100]`, `whop members list`, `whop people list`, `whop payouts list`, `whop disputes list`, `whop apps list`, \
+`whop ledgers list` (no --first flag), `whop ledgers report --report_type balance_summary|income_statement`, \
+`whop stats list` (metric catalog), `whop stats get <metric> --from YYYY-MM-DD --to YYYY-MM-DD --interval day|week|month` with metrics such as net_revenue, gross_revenue, monthly_recurring_revenue, churn_rate, paid_active_members, new_users, account_balance, total_refunded, disputes. \
+Lists return {data:[…],page_info}; errors return {code,message}. Prefer `--filter-output a,b.c` and `--token-limit` to keep output small. `whop auth *` and `whop accounts *` take no --account_id."
+    };
     format!(
         "You are the assistant inside Whop Desktop, a Mac app for running a Whop business, currently {biz}. \
 {demo}\
-You operate the business ONLY through the `whop` CLI via the Bash tool. Always add `--format json`; use `--filter-output` and `--token-limit` to keep output small; use `whop <group> <command> --schema` when unsure about options and `whop --llms` for the full command list. {acct_flag}\
-Do not use any other tools, do not read or write files, do not pipe secrets. \
+You operate the business ONLY through the `whop` CLI via the Bash tool. Always add `--format json`. {acct_flag}\
+{reference} \
+Do not use any other tools, do not read or write files, do not pipe secrets, do not pipe through head/tail (the app truncates for you). \
 {writes} \
 Style: answer like a sharp operator, in short plain sentences; format money like $1,234.50; lead with the answer, then the evidence; suggest one next step when useful. Do not narrate tool calls; the app shows them."
     )
@@ -270,7 +286,7 @@ pub fn assistant_start(app: AppHandle, state: State<'_, AssistantState>, args: S
         .arg("--permission-mode")
         .arg("default")
         .arg("--max-turns")
-        .arg("12")
+        .arg("30")
         .arg("--append-system-prompt")
         .arg(system_prompt(&args));
     if let Some(m) = &args.model {

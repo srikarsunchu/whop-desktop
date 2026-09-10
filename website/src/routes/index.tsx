@@ -1,3 +1,5 @@
+import { createFileRoute } from '@tanstack/react-router'
+export const Route = createFileRoute('/')({ component: Home })
 import { ArrowUpRight, ArrowRight, Download } from "lucide-react";
 const releaseReady = false;
 const download = 'https://github.com/srikarsunchu/whop-desktop/releases/download/v0.4.0-preview.1/Whop-Desktop-0.4.0-Apple-Silicon.dmg';

@@ -1,4 +1,0 @@
-import type { Metadata } from 'next';
-import './globals.css';
-export const metadata: Metadata = {title:'Whop Desktop — a Mac workspace for your business',description:'Try Srikar’s unofficial Whop Desktop preview. Revenue, customers, creative work and an assistant in one Mac app. Explore a fictional demo without an account.',metadataBase:new URL('https://whop-desktop.sunchusrikar.chatgpt.site'),icons:{icon:'/app-icon.png'},openGraph:{title:'Whop Desktop',description:'Your Whop business. On your Mac.',url:'https://whop-desktop.sunchusrikar.chatgpt.site'},twitter:{card:'summary',title:'Whop Desktop',description:'An unofficial Mac workspace for your Whop business.'}};
-export default function RootLayout({children}:Readonly<{children:React.ReactNode}>){return <html lang="en" className="dark"><body>{children}</body></html>;}

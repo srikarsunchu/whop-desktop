@@ -1,22 +1,20 @@
 # Whop Desktop landing page
 
-Live at https://whop-desktop.sunchusrikar.chatgpt.site/.
+Live at https://srikar-desktop.whop.site/.
 
-This directory contains the published landing page source and demo assets, including the updated SVG arrows and simplified labels. It is a separate npm project from the desktop app.
+The landing page and demo are hosted on Whop using TanStack Start. The Mac download remains disabled until a signed, notarized release is ready.
 
-## Local development
-
-```sh
-npm ci
-npm run dev
-```
-
-## Production build
+## Develop
 
 ```sh
-npm run build
+bun install --frozen-lockfile
+bun run dev
 ```
 
-The static output is written to `dist/client`. Sites deployment settings are in `.openai/hosting.json`. Pushing this GitHub repository does not automatically deploy the website.
+## Deploy
 
-The download remains disabled until a signed, notarized Mac release is available.
+```sh
+whop apps deploy
+```
+
+Sign in to the Whop account that owns the app first. Deployment builds, typechecks, uploads, and promotes the site. The app connection is in whop.app.json. GitHub pushes do not deploy automatically.

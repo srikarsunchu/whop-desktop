@@ -78,8 +78,8 @@ export function App() {
       }
       let list: Account[] = [];
       try {
-        const res = await runWhopJson<{ data: { id: string; title: string; route?: string }[] }>(["accounts", "list"]);
-        list = (res.data ?? []).map((a) => ({ id: a.id, title: a.title, route: a.route }));
+        const res = await runWhopJson<{ data: { id: string; title: string; route?: string; logo_url?: string | null }[] }>(["accounts", "list"]);
+        list = (res.data ?? []).map((a) => ({ id: a.id, title: a.title, route: a.route, logo: a.logo_url ?? null }));
       } catch {
         /* accounts list needs a logged-in profile */
       }

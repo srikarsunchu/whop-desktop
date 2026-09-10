@@ -31,7 +31,6 @@ export const NAV: { id: ViewId; label: string; icon: React.ComponentType<{ class
 
 export function Sidebar({ view, onNavigate, onOpenPalette }: { view: ViewId; onNavigate: (v: ViewId) => void; onOpenPalette: () => void }) {
   const { account, accounts, setAccount, cliVersion, loggedIn, profile, cliPath } = useAccount();
-  const initial = (account?.title ?? "W").trim().charAt(0).toUpperCase();
   const version = cliVersion?.replace(/^whop\s*/i, "") ?? null;
 
   return (
@@ -42,7 +41,7 @@ export function Sidebar({ view, onNavigate, onOpenPalette }: { view: ViewId; onN
         <DropdownMenu.Root>
           <DropdownMenu.Trigger>
             <button className="sidebar-switcher-button" type="button" aria-label="Switch business">
-              <Avatar size="2" shape="square" color={account?.demo ? "gray" : "orange"} fallback={initial} />
+              <Avatar size="2" shape="square" color={account?.demo ? "gray" : "orange"} fallback={account?.title ?? "W"} src={account?.logo ?? undefined} alt="" />
               <span className="sidebar-switcher-text">
                 <Text size="2" weight="medium">
                   {account?.title ?? "Choose a business"}
@@ -61,7 +60,7 @@ export function Sidebar({ view, onNavigate, onOpenPalette }: { view: ViewId; onN
                 .filter((a) => !a.demo)
                 .map((a) => (
                   <DropdownMenu.Item key={a.id} onClick={() => setAccount(a)}>
-                    <Avatar size="1" shape="square" color="orange" fallback={a.title.charAt(0).toUpperCase()} />
+                    <Avatar size="1" shape="square" color="orange" fallback={a.title} src={a.logo ?? undefined} alt="" />
                     <span style={{ flex: 1 }}>{a.title}</span>
                     {account?.id === a.id && <CheckIcon />}
                   </DropdownMenu.Item>
@@ -75,7 +74,7 @@ export function Sidebar({ view, onNavigate, onOpenPalette }: { view: ViewId; onN
                 .filter((a) => a.demo)
                 .map((a) => (
                   <DropdownMenu.Item key={a.id} onClick={() => setAccount(a)}>
-                    <Avatar size="1" shape="square" color="gray" fallback={a.title.charAt(0)} />
+                    <Avatar size="1" shape="square" color="gray" fallback={a.title} />
                     <span style={{ flex: 1 }}>{a.title}</span>
                     {account?.id === a.id && <CheckIcon />}
                   </DropdownMenu.Item>

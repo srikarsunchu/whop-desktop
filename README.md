@@ -1,5 +1,7 @@
 # Whop Desktop
 
+[Watch the demo and read the install guide](https://whop-desktop.sunchusrikar.chatgpt.site/). Landing page source: [website/](./website/).
+
 A native macOS command center for running a Whop business, built on the
 [Whop CLI](https://whop.sh). Revenue, balance, members, memberships, products,
 visitors and apps in one window, with a ⌘K palette that runs any `whop`

@@ -127,9 +127,10 @@ python3 scripts/make-tray-icon.py                    # menu-bar template icon
 
 - **Google sign-in and passkeys.** WKWebView only supports the cross-device
   (Bluetooth) passkey flow, so Google's "use your passkey" step fails with
-  "Something went wrong". The injected script hides WebAuthn from
-  `accounts.google.com` so Google falls back to a password prompt. If you still
-  hit it, click "Try another way" in the Google popup.
+  "Something went wrong". The injected script removes WebAuthn on
+  `accounts.google.com` so Google should fall back to a password prompt. If
+  you still land on the passkey step, click "Try another way" and choose
+  "Enter your password".
 - **Web Push from Whop** depends on WKWebView and Whop's service worker; the
   app neither guarantees nor fakes it. Download notifications are native and
   unaffected.

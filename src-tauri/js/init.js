@@ -6,18 +6,18 @@
   if (window.__whopDesktop) return;
   var host = location.hostname;
 
-  // Google sign-in popup. WKWebView only offers the cross-device (Bluetooth)
-  // passkey path, so when Google sees a passkey-capable browser it tries that
-  // and fails with "Something went wrong". Hide WebAuthn from the page so
-  // Google falls back to its normal password flow.
+  // Google sign-in page (whop redirects the main window to accounts.google.com).
+  // WKWebView only offers the cross-device (Bluetooth) passkey path, so when
+  // Google sees a passkey-capable browser it tries that and fails with
+  // "Something went wrong". Remove WebAuthn entirely so Google's capability
+  // check reports no passkey support and it falls back to the password flow.
   if (host === 'accounts.google.com' || host.endsWith('.google.com')) {
-    try { delete window.PublicKeyCredential; } catch (e) {}
-    try {
-      Object.defineProperty(window, 'PublicKeyCredential', { value: undefined, configurable: true, writable: true });
-    } catch (e) {}
-    try {
-      Object.defineProperty(Navigator.prototype, 'credentials', { get: function () { return undefined; }, configurable: true });
-    } catch (e) {}
+    ['PublicKeyCredential', 'AuthenticatorResponse', 'AuthenticatorAssertionResponse',
+     'AuthenticatorAttestationResponse', 'CredentialsContainer', 'Credential'].forEach(function (k) {
+      try { delete window[k]; } catch (e) {}
+    });
+    try { delete Navigator.prototype.credentials; } catch (e) {}
+    try { delete navigator.credentials; } catch (e) {}
     return;
   }
 

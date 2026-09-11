@@ -1,3 +1,9 @@
+import { loadGenerations } from "../lib/studio-jobs";
+import {
+  ChatCreatives,
+  type CreativeHandle,
+} from "../components/ChatCreatives";
+import { wantsCreative } from "../lib/chat-creatives";
 import { invoke } from "@tauri-apps/api/core";
 import {
   Badge,
@@ -94,6 +100,8 @@ export function Assistant({
       })),
     [activeId],
   );
+  const creativeRef = useRef<CreativeHandle>(null);
+  const [creativeMode, setCreativeMode] = useState(false);
   const input = conv.draft;
   const setInput = useCallback(
     (draft: string) =>
@@ -203,6 +211,14 @@ export function Assistant({
     async (text: string) => {
       const prompt = text.trim();
       if (
+        prompt &&
+        account &&
+        !busy &&
+        !sendingRef.current &&
+        creativeRef.current?.prepare(prompt)
+      )
+        return;
+      if (
         !prompt ||
         !account ||
         !claudePath ||
@@ -258,7 +274,11 @@ export function Assistant({
       try {
         const handle = await startRun(
           {
-            prompt,
+            prompt: (() => {
+              const creatives = loadGenerations().filter(g=>g.accountId===account.id && g.conversationId===activeId);
+              if (!creatives.length) return prompt;
+              return `${prompt}\n\nSaved creative context for this conversation (metadata only; do not claim to see the pixels): ${JSON.stringify(creatives.slice(-6).map(g=>({id:g.id,parentId:g.parentId,status:g.status,sample:g.sample,instruction:g.instruction,product:g.context?.productTitle,adDraftId:g.adDraftId})))}. Images and revisions must be created through Create image in the composer, which provides review and saved previews.`;
+            })(),
             sessionId: conv.sessionId,
             accountId: account?.id,
             accountTitle: account?.title,
@@ -398,6 +418,7 @@ export function Assistant({
       run,
       busy,
       conv.sessionId,
+      activeId,
       account,
       allowWrites,
       update,
@@ -676,6 +697,29 @@ export function Assistant({
                 />
               ))
             )}
+            <ChatCreatives
+              key={activeId}
+              ref={creativeRef}
+              threadId={activeId}
+              onMode={setCreativeMode}
+              onNavigate={onNavigate}
+              onRevise={() => taRef.current?.focus()}
+              onRecord={(text) => {
+                setInput("");
+                setConv((c) => ({
+                  ...c,
+                  messages: [
+                    ...c.messages,
+                    {
+                      id: uid(),
+                      role: "user",
+                      blocks: [{ type: "text", text }],
+                      createdAt: Date.now(),
+                    },
+                  ],
+                }));
+              }}
+            />
           </div>
           <div className="chat-composer" data-busy={busy}>
             <textarea
@@ -685,7 +729,9 @@ export function Assistant({
               placeholder={
                 busy
                   ? "Write your next message while I work…"
-                  : "Ask anything about your Whop business…"
+                  : creativeMode
+                    ? "Describe your image or a revision…"
+                    : "Ask anything about your Whop business…"
               }
               value={input}
               onChange={(e) => setInput(e.target.value)}
@@ -699,6 +745,15 @@ export function Assistant({
             />
             <div className="chat-composer-bar">
               <div className="composer-context">
+                <button
+                  type="button"
+                  className="creative-mode-button"
+                  disabled={busy}
+                  onClick={() => creativeRef.current?.activate()}
+                >
+                  Create image
+                </button>
+                <button type="button" className="creative-mode-button" disabled={busy} onClick={()=>creativeRef.current?.importImage()}>Import artwork</button>
                 <span>
                   {account?.demo
                     ? "Demo business"
@@ -736,10 +791,16 @@ export function Assistant({
                   variant="classic"
                   onClick={() => send(input)}
                   disabled={
-                    !input.trim() || !claudePath || !connected || !account
+                    !input.trim() ||
+                    !account ||
+                    (!(creativeMode || wantsCreative(input)) &&
+                      (!claudePath || !connected))
                   }
                 >
-                  <ArrowUpIcon /> Send
+                  <ArrowUpIcon />{" "}
+                  {creativeMode || wantsCreative(input)
+                    ? "Review image"
+                    : "Send"}
                 </Button>
               )}
             </div>
@@ -748,7 +809,9 @@ export function Assistant({
             <span>
               {busy
                 ? "Working · you can explore your business pages"
-                : allowWrites
+                : creativeMode
+                  ? "One image per request · review before generating"
+                  : allowWrites
                   ? "Changes require confirmation in chat"
                   : connected
                     ? "Can read your business · changes are off"

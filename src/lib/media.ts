@@ -2,6 +2,10 @@ import type { CreativeContext } from "./studio-context";
 /** Studio's response contract and state transitions, independent of the view. */
 export interface Generation {
   id: string;
+  conversationId?: string;
+  source?: "imported";
+  requestKey?: string;
+  instruction?: string;
   type: "image" | "video";
   prompt: string;
   status: string;

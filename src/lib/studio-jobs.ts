@@ -17,6 +17,9 @@ export const updateGenerations=(update:(items:Generation[])=>Generation[])=>{
 /** Track existing jobs throughout the app and resume them on launch. Never generate here. */
 export function useStudioJobs(){
   useEffect(()=>{
+    // A request interrupted before returning a server ID can safely be retried
+    // with its persisted idempotency key; never submit it automatically.
+    updateGenerations(xs=>xs.map(g=>g.conversationId && g.id.startsWith('pending-') && pendingMedia(g)?{...g,status:'failed',error:'The app closed before this request could be tracked. Retry the same request to recover it.'}:g));
     let disposed=false;
     const checking=new Set<string>();
     const tick=()=>{

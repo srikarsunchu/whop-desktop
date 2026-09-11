@@ -46,6 +46,11 @@ pub fn shim_main() -> ! {
 }
 
 fn shim_run(args: &[String]) -> i32 {
+    if args.first().map(String::as_str) == Some("media") && args.get(1).map(String::as_str) == Some("generate") {
+        println!("{}", serde_json::json!({"code":"CREATIVE_REVIEW_REQUIRED","message":"Use Create image in the chat composer to review and generate images with saved previews. Use Studio for video. Do not generate through terminal tools."}));
+        return 1;
+    }
+
     // Demo business: answer from the fixtures file the app wrote.
     if let Ok(file) = std::env::var(DEMO_FILE_ENV) {
         return shim_demo(&file, args);

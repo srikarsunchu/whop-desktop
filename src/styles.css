@@ -1281,3 +1281,27 @@ button:focus-visible, .chart:focus-visible { outline: 2px solid var(--accent-8);
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
   :where(.nav-item, .period-control button, .chat-suggestion, .overview-metric button):active:not(:disabled) { scale: none; }
 }
+
+/* In-conversation creative workspace. */
+.chat-creatives { width: 100%; max-width: 800px; margin: 16px auto; }
+.creative-context-bar { display:flex; align-items:center; justify-content:space-between; padding:12px 16px; border:1px solid var(--gray-a5); border-radius:12px; background:var(--gray-a2); gap:12px; }
+.creative-context-bar strong,.creative-context-bar span {display:block;}
+.creative-context-bar span,.creative-hint {font-size:12px;color:var(--gray-11);}
+.creative-hint {margin:8px 2px 16px;}
+.chat-creative-grid {display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;}
+.chat-creative-card {border:1px solid var(--gray-a5);border-radius:14px;overflow:hidden;background:var(--gray-a2);}
+.chat-creative-image {height:260px;display:flex;align-items:center;justify-content:center;background:var(--gray-2);}
+.chat-creative-image img {width:100%;height:100%;object-fit:contain;}
+.chat-creative-body {padding:16px;display:flex;flex-direction:column;gap:8px;}
+.chat-creative-body p {margin:0;font-size:13px;white-space:pre-wrap;overflow-wrap:anywhere;}
+.chat-creative-body span,.chat-creative-body small {font-size:12px;color:var(--gray-11);}
+.chat-creative-actions {display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;}
+.creative-review label {display:flex;flex-direction:column;gap:6px;margin-top:16px;font-size:13px;}
+.creative-review input,.creative-review textarea,.creative-review select {font:inherit;color:var(--gray-12);background:var(--gray-2);border:1px solid var(--gray-a6);border-radius:8px;padding:10px;width:100%;box-sizing:border-box;}
+.creative-review textarea {min-height:78px;resize:vertical;}
+.creative-review-actions {display:flex;justify-content:flex-end;gap:8px;margin-top:20px;}
+.creative-cost {padding:12px;border-radius:8px;background:var(--gray-a3);font-size:13px;}
+.creative-ad-preview {display:block;max-width:100%;height:200px;object-fit:contain;margin:16px auto;}
+.creative-mode-button {border:0;border-radius:6px;padding:4px 8px;background:var(--gray-a3);color:var(--gray-12);font:inherit;cursor:pointer;}
+
+.creative-ad-preview img {width:100%;height:100%;object-fit:contain;}

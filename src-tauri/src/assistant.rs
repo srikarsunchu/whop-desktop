@@ -54,7 +54,7 @@ fn shim_run(args: &[String]) -> i32 {
         let msg = serde_json::json!({
             "code": "WRITE_BLOCKED",
             "message": format!(
-                "Whop Desktop blocked `whop {}` because it changes production data. Ask the user to turn on \"Allow writes\" in the assistant header, then run it again once they confirm.",
+                "Whop Desktop blocked `whop {}` because it changes production data. Ask the user to turn on \"Allow changes\" in Assistant Settings, then run it again once they confirm.",
                 args.join(" ")
             )
         });
@@ -221,7 +221,7 @@ fn system_prompt(a: &StartArgs) -> String {
     let writes = if a.allow_writes {
         "Writes are ENABLED: still explain what a write command will do and get an explicit yes in chat before running create/update/delete/cancel/payout/deploy commands."
     } else {
-        "Writes are DISABLED: if a command returns WRITE_BLOCKED, tell the user to turn on \"Allow writes\" in the header and confirm, then retry. Never try to work around the block."
+        "Writes are DISABLED: if a command returns WRITE_BLOCKED, tell the user to turn on \"Allow changes\" in Assistant Settings and confirm, then retry. Never try to work around the block."
     };
     let reference = if a.demo {
         "DEMO COMMAND SET (only these return data; do not explore with --schema/--help/stats list): \
@@ -387,4 +387,42 @@ pub fn write_demo_fixtures(app: AppHandle, json: String) -> Result<(), String> {
     let dir = config_dir(&app);
     fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
     fs::write(dir.join("demo.json"), json).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn claude_auth_status() -> Result<bool, String> {
+    tauri::async_runtime::spawn_blocking(|| {
+        let cli = claude_binary().ok_or("Claude is not installed")?;
+        let output = Command::new(cli).args(["auth", "status"]).env_remove("CLAUDECODE")
+            .stdin(Stdio::null()).output().map_err(|e| e.to_string())?;
+        let value: serde_json::Value = serde_json::from_slice(&output.stdout)
+            .map_err(|_| "Could not check the Claude connection. Try again.".to_string())?;
+        value.get("loggedIn").and_then(|v| v.as_bool()).ok_or("Claude did not return a connection status.".to_string())
+    }).await.map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub async fn claude_login() -> Result<(), String> {
+    use std::sync::atomic::{AtomicBool, Ordering};
+    static SIGNING_IN: AtomicBool = AtomicBool::new(false);
+    if SIGNING_IN.swap(true, Ordering::SeqCst) { return Err("A Claude sign-in is already in progress.".into()); }
+    let result = tauri::async_runtime::spawn_blocking(|| {
+        let cli = claude_binary().ok_or("Claude is not installed")?;
+        let mut child = Command::new(cli).args(["auth", "login", "--claudeai"])
+            .env_remove("CLAUDECODE").env_remove("CLAUDE_CODE_ENTRYPOINT")
+            .stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null())
+            .spawn().map_err(|e| e.to_string())?;
+        let started = std::time::Instant::now();
+        loop {
+            match child.try_wait() {
+                Ok(Some(status)) => return if status.success() {Ok(())} else {Err("Claude sign-in did not finish. Try again, or run claude auth login in your terminal.".into())},
+                Ok(None) => {},
+                Err(e) => {let _ = child.kill(); let _ = child.wait(); return Err(e.to_string());}
+            }
+            if started.elapsed().as_secs() > 300 { let _ = child.kill(); let _ = child.wait(); return Err("Sign-in timed out. Try again when you are ready.".into()); }
+            std::thread::sleep(std::time::Duration::from_millis(200));
+        }
+    }).await.map_err(|e| e.to_string()).and_then(|r| r);
+    SIGNING_IN.store(false, Ordering::SeqCst);
+    result
 }

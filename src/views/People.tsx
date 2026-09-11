@@ -1,89 +1,145 @@
-import { Button, Table, Text } from "frosted-ui";
-import { EmptyPanel, PageHeader, Panel, QueryBody } from "../components/Panel";
+import { Button } from "frosted-ui";
+import { useState } from "react";
+import { PageHeader } from "../components/Panel";
+import {
+  Detail,
+  Directory,
+  Facts,
+  RecordDialog,
+  RecordTable,
+  ReadDetails,
+  type RecordData,
+} from "../components/Workspace";
 import { UserCell } from "../components/UserCell";
-import { money, num, relative } from "../lib/format";
-import { commandString, useAccount, useWhop, type Page, type Person } from "../lib/whop";
-
-export function People({ runInTerminal }: { runInTerminal: (c: string) => void }) {
-  const { account } = useAccount();
-  const people = useWhop<Page<Person>>(["people", "list", "--first", "100"]);
+import { money, shortDate } from "../lib/format";
+export function People({
+  onMember,
+}: {
+  runInTerminal: (c: string) => void;
+  onMember?: (username: string) => void;
+}) {
+  const [selected, setSelected] = useState<RecordData | null>(null);
+  const [events, setEvents] = useState(false);
   return (
     <div className="stack">
       <PageHeader
         title="People"
-        subtitle={account ? `${account.title} · visitors and customers, with purchase and traffic profiles` : undefined}
+        subtitle="Explore purchase history and the traffic behind your audience."
         actions={
-          <Button size="1" variant="surface" onClick={() => runInTerminal("whop events pulse")}>
-            Event pulse
+          <Button variant="soft" onClick={() => setEvents(!events)}>
+            {events ? "Hide event activity" : "Event activity"}
           </Button>
         }
       />
-      <Panel title="Visitors" query={people} onRun={runInTerminal}>
-        <QueryBody q={people} onRun={runInTerminal} empty={(d) => (d.data.length === 0 ? <EmptyPanel title="No visitors tracked yet" description="Install the Whop pixel on your site and every visit lands here with location, device and LTV." action={{ label: "Validate pixel", onClick: () => runInTerminal("whop events validate_pixel") }} /> : null)}>
-          {(d) => (
-            <div className="table-clip">
-              <Table.Root variant="ghost" size="1">
-                <Table.Table>
-                  <Table.Header>
-                    <Table.Row>
-                      <Table.ColumnHeaderCell>Person</Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell>Location</Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell>Device</Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell justify="end">Events</Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell justify="end">Purchases</Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell justify="end">LTV</Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell justify="end">Last seen</Table.ColumnHeaderCell>
-                    </Table.Row>
-                  </Table.Header>
-                  <Table.Body>
-                    {d.data.map((p) => (
-                      <Table.Row key={p.id} data-clickable onClick={() => runInTerminal(commandString(["people", "get", p.id]))}>
-                        <Table.Cell>
-                          {p.name || p.user?.username ? (
-                            <UserCell username={p.user?.username} name={p.name} />
-                          ) : (
-                            <Text size="2" color="gray">
-                              Anonymous visitor
-                            </Text>
-                          )}
-                        </Table.Cell>
-                        <Table.Cell>
-                          <Text size="2">{[p.location?.city, p.location?.country].filter(Boolean).join(", ") || "—"}</Text>
-                        </Table.Cell>
-                        <Table.Cell>
-                          <Text size="2" color="gray">
-                            {[p.device?.browser, p.device?.os].filter(Boolean).join(" · ") || "—"}
-                          </Text>
-                        </Table.Cell>
-                        <Table.Cell justify="end">
-                          <Text size="2" className="num">
-                            {num(p.event_count)}
-                          </Text>
-                        </Table.Cell>
-                        <Table.Cell justify="end">
-                          <Text size="2" className="num">
-                            {num(p.purchase_count)}
-                          </Text>
-                        </Table.Cell>
-                        <Table.Cell justify="end">
-                          <Text size="2" className="num" weight={p.ltv > 0 ? "medium" : "regular"}>
-                            {money(p.ltv)}
-                          </Text>
-                        </Table.Cell>
-                        <Table.Cell justify="end">
-                          <Text size="1" color="gray">
-                            {relative(p.last_seen_at)}
-                          </Text>
-                        </Table.Cell>
-                      </Table.Row>
-                    ))}
-                  </Table.Body>
-                </Table.Table>
-              </Table.Root>
-            </div>
+      {events && (
+        <RecordDialog
+          title="Event activity"
+          subtitle="Recent audience activity"
+          onClose={() => setEvents(false)}
+        >
+          <Detail
+            title="Event activity"
+            subtitle="Recent activity across your audience"
+            onClose={() => setEvents(false)}
+          >
+            <ReadDetails args={["events", "pulse"]} title="Recent events" />
+          </Detail>
+        </RecordDialog>
+      )}
+      <div className="business-directory">
+        <Directory
+          title="People"
+          storageKey="people"
+          args={["people", "list", "--first", "100"]}
+          renderRows={(rows) => (
+            <RecordTable
+              rows={rows}
+              onSelect={setSelected}
+              columns={[
+                {
+                  label: "Person",
+                  render: (r) => (
+                    <UserCell
+                      name={r.name ?? "Anonymous visitor"}
+                      username={r.user?.username}
+                    />
+                  ),
+                },
+                { label: "Lifetime value", render: (r) => money(r.ltv) },
+                { label: "Purchases", render: (r) => r.purchase_count ?? 0 },
+                {
+                  label: "Location",
+                  render: (r) =>
+                    [r.location?.city, r.location?.country]
+                      .filter(Boolean)
+                      .join(", ") || "—",
+                },
+                {
+                  label: "Last seen",
+                  render: (r) => shortDate(r.last_seen_at),
+                },
+              ]}
+            />
           )}
-        </QueryBody>
-      </Panel>
+          selected={selected?.id}
+          onSelect={setSelected}
+          label={(r) => r.name ?? r.user?.username ?? "Anonymous visitor"}
+          secondary={(r) =>
+            `${r.purchase_count ?? 0} purchases · ${r.location?.city ?? "Unknown location"}`
+          }
+        />
+        {selected && (
+          <RecordDialog
+            title={selected.name ?? "Visitor profile"}
+            subtitle="Purchase history and activity"
+            onClose={() => setSelected(null)}
+          >
+            <Detail
+              title={
+                selected.name ?? selected.user?.username ?? "Anonymous visitor"
+              }
+              subtitle={selected.email ?? "No email recorded"}
+              onClose={() => setSelected(null)}
+              actions={
+                selected.user?.username ? (
+                  <Button
+                    size="1"
+                    variant="soft"
+                    onClick={() => onMember?.(selected.user.username)}
+                  >
+                    View memberships
+                  </Button>
+                ) : undefined
+              }
+            >
+              <Facts
+                items={[
+                  ["Lifetime value", money(selected.ltv)],
+                  ["Purchases", selected.purchase_count],
+                  ["Events", selected.event_count],
+                  ["First seen", shortDate(selected.first_seen_at)],
+                  ["Last seen", shortDate(selected.last_seen_at)],
+                  [
+                    "Location",
+                    [selected.location?.city, selected.location?.country]
+                      .filter(Boolean)
+                      .join(", "),
+                  ],
+                  ["Device", selected.device?.device],
+                  ["Browser", selected.device?.browser],
+                ]}
+              />
+              <details className="workspace-technical">
+                <summary>Full customer record</summary>
+                <ReadDetails
+                  args={["people", "get", selected.id]}
+                  title="Customer profile"
+                />
+              </details>
+            </Detail>
+          </RecordDialog>
+        )}
+      </div>
     </div>
   );
 }

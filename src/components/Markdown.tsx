@@ -9,10 +9,51 @@ export function Markdown({ text }: { text: string }) {
   let key = 0;
   while (i < lines.length) {
     const line = lines[i];
+    const cells = (row: string) =>
+      row
+        .trim()
+        .replace(/^\||\|$/g, "")
+        .split("|")
+        .map((c) => c.trim());
+    const tableStart = (n: number) =>
+      n + 1 < lines.length &&
+      lines[n].includes("|") &&
+      cells(lines[n + 1]).every((c) => /^:?-{3,}:?$/.test(c));
+    if (tableStart(i)) {
+      const headers = cells(line);
+      i += 2;
+      const rows: string[][] = [];
+      while (i < lines.length && lines[i].includes("|") && lines[i].trim())
+        rows.push(cells(lines[i++]));
+      out.push(
+        <div className="md-table-wrap" key={key++}>
+          <table>
+            <thead>
+              <tr>
+                {headers.map((h, n) => (
+                  <th key={n}>{inline(h)}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r, n) => (
+                <tr key={n}>
+                  {headers.map((_, c) => (
+                    <td key={c}>{inline(r[c] ?? "")}</td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>,
+      );
+      continue;
+    }
     if (line.startsWith("```")) {
       const buf: string[] = [];
       i++;
-      while (i < lines.length && !lines[i].startsWith("```")) buf.push(lines[i++]);
+      while (i < lines.length && !lines[i].startsWith("```"))
+        buf.push(lines[i++]);
       i++;
       out.push(
         <pre key={key++} className="md-pre">
@@ -24,7 +65,8 @@ export function Markdown({ text }: { text: string }) {
     if (/^\s*([-*•]|\d+[.)])\s+/.test(line)) {
       const items: string[] = [];
       const ordered = /^\s*\d+[.)]/.test(line);
-      while (i < lines.length && /^\s*([-*•]|\d+[.)])\s+/.test(lines[i])) items.push(lines[i++].replace(/^\s*([-*•]|\d+[.)])\s+/, ""));
+      while (i < lines.length && /^\s*([-*•]|\d+[.)])\s+/.test(lines[i]))
+        items.push(lines[i++].replace(/^\s*([-*•]|\d+[.)])\s+/, ""));
       out.push(
         ordered ? (
           <ol key={key++} className="md-list">
@@ -45,7 +87,12 @@ export function Markdown({ text }: { text: string }) {
     const h = /^(#{1,3})\s+(.*)/.exec(line);
     if (h) {
       out.push(
-        <Text key={key++} size="3" weight="medium" style={{ display: "block", marginTop: 8 }}>
+        <Text
+          key={key++}
+          size="3"
+          weight="medium"
+          style={{ display: "block", marginTop: 8 }}
+        >
           {inline(h[2])}
         </Text>,
       );
@@ -57,7 +104,15 @@ export function Markdown({ text }: { text: string }) {
       continue;
     }
     const buf: string[] = [];
-    while (i < lines.length && lines[i].trim() !== "" && !/^\s*([-*•]|\d+[.)])\s+/.test(lines[i]) && !lines[i].startsWith("```") && !/^#{1,3}\s/.test(lines[i])) buf.push(lines[i++]);
+    while (
+      i < lines.length &&
+      !tableStart(i) &&
+      lines[i].trim() !== "" &&
+      !/^\s*([-*•]|\d+[.)])\s+/.test(lines[i]) &&
+      !lines[i].startsWith("```") &&
+      !/^#{1,3}\s/.test(lines[i])
+    )
+      buf.push(lines[i++]);
     out.push(
       <p key={key++} className="md-p">
         {inline(buf.join(" "))}
@@ -93,7 +148,8 @@ function inline(s: string): ReactNode[] {
 export function JsonText({ text }: { text: string }) {
   const trimmed = text.trim();
   if (!(trimmed.startsWith("{") || trimmed.startsWith("["))) return <>{text}</>;
-  const re = /("(?:[^"\\]|\\.)*")(\s*:)?|(\b-?\d+(?:\.\d+)?(?:e[+-]?\d+)?\b)|(\btrue\b|\bfalse\b|\bnull\b)/g;
+  const re =
+    /("(?:[^"\\]|\\.)*")(\s*:)?|(\b-?\d+(?:\.\d+)?(?:e[+-]?\d+)?\b)|(\btrue\b|\bfalse\b|\bnull\b)/g;
   const out: ReactNode[] = [];
   let last = 0;
   let m: RegExpExecArray | null;
@@ -107,8 +163,18 @@ export function JsonText({ text }: { text: string }) {
         </span>,
       );
       if (m[2]) out.push(m[2]);
-    } else if (m[3]) out.push(<span key={k++} className="j-num">{m[3]}</span>);
-    else if (m[4]) out.push(<span key={k++} className="j-lit">{m[4]}</span>);
+    } else if (m[3])
+      out.push(
+        <span key={k++} className="j-num">
+          {m[3]}
+        </span>,
+      );
+    else if (m[4])
+      out.push(
+        <span key={k++} className="j-lit">
+          {m[4]}
+        </span>,
+      );
     last = m.index + m[0].length;
   }
   if (last < text.length) out.push(text.slice(last));

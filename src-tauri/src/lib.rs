@@ -565,6 +565,57 @@ async fn whop_raw(args: Vec<String>) -> Result<RawOutput, String> {
         .await.map_err(|e| format!("CLI task failed: {e}"))?
 }
 
+/// Browser OAuth without exposing authorization URLs or tokens to the renderer.
+#[tauri::command]
+async fn whop_login() -> Result<(), String> {
+    static LOGIN_RUNNING: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+    if LOGIN_RUNNING.swap(true, std::sync::atomic::Ordering::SeqCst) {
+        return Err("A sign-in is already running. Finish it in your browser.".into());
+    }
+    let result = tauri::async_runtime::spawn_blocking(|| {
+        use std::io::{BufRead, BufReader};
+        use std::process::Stdio;
+        use std::time::{Duration, Instant};
+        let bin = whop_binary().ok_or("Install the Whop CLI first.")?;
+        let mut child = Command::new(bin)
+            .args(["auth", "login", "--method", "oauth", "--format", "jsonl"])
+            .env("NO_COLOR", "1").stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::null())
+            .spawn().map_err(|e| e.to_string())?;
+        let output = child.stdout.take().ok_or("Could not read the sign-in response.")?;
+        let (tx, rx) = std::sync::mpsc::channel();
+        std::thread::spawn(move || {
+            for line in BufReader::new(output).lines().map_while(Result::ok) {
+                if tx.send(line).is_err() { break; }
+            }
+        });
+        let started = Instant::now();
+        let mut opened = false;
+        loop {
+            while let Ok(line) = rx.try_recv() {
+                if let Ok(event) = serde_json::from_str::<serde_json::Value>(&line) {
+                    let url = event.get("authorizationUrl").and_then(|v| v.as_str())
+                        .or_else(|| event.get("data").and_then(|d| d.get("authorizationUrl")).and_then(|v| v.as_str()));
+                    if let Some(url) = url {
+                        if !opened && Url::parse(url).map(|u| u.scheme() == "https").unwrap_or(false) {
+                            if Command::new("/usr/bin/open").arg(url).status().map(|s| s.success()).unwrap_or(false) { opened = true; }
+                        }
+                    }
+                }
+            }
+            if let Some(status) = child.try_wait().map_err(|e| e.to_string())? {
+                return if status.success() { Ok(()) } else { Err("Whop sign-in did not complete. Please try again.".into()) };
+            }
+            if started.elapsed() > Duration::from_secs(300) {
+                let _ = child.kill(); let _ = child.wait();
+                return Err("Sign-in timed out. Please try again.".into());
+            }
+            std::thread::sleep(Duration::from_millis(100));
+        }
+    }).await.map_err(|e| e.to_string());
+    LOGIN_RUNNING.store(false, std::sync::atomic::Ordering::SeqCst);
+    result?
+}
+
 /// Runs a CLI command with `--format json` and returns the parsed JSON. CLI
 /// error envelopes (`{code, message}`) are passed through for the UI to show.
 #[tauri::command]
@@ -586,6 +637,9 @@ fn run_whop_json(args: Vec<String>) -> Result<serde_json::Value, String> {
     }
     let out = run_whop(&full)?;
     let text = out.stdout.trim();
+    if out.code != 0 {
+        return Err(if out.stderr.trim().is_empty() { text.chars().take(2000).collect() } else { out.stderr.trim().chars().take(2000).collect() });
+    }
     if text.is_empty() {
         if out.code == 0 {
             return Ok(serde_json::Value::Null);
@@ -1075,6 +1129,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             whop_json,
+            whop_login,
             whop_raw,
             whop_binary_path,
             launch_hints,
@@ -1086,6 +1141,8 @@ pub fn run() {
             assistant::assistant_start,
             assistant::assistant_stop,
             assistant::claude_binary_path,
+            assistant::claude_auth_status,
+            assistant::claude_login,
             assistant::write_demo_fixtures
         ])
         .build(tauri::generate_context!())

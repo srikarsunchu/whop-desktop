@@ -1,3 +1,4 @@
+import { businessDemo } from "./business-demo";
 // A labeled demo business so the app can be shown fully populated. Shapes
 // mirror the real CLI JSON (`whop … --format json`) so the views don't branch.
 // Nothing here is real: names, ids and amounts are invented.
@@ -235,9 +236,9 @@ const audiences = [
 ];
 const socialAccounts = [{ id: "soc_NwFacebook", platform: "facebook", name: "Northwind Picks", username: "northwindpicks", verified: true, scopes: ["advertise"] }];
 const bounties = [
-  { id: "bnty_NwClips1", title: "Clip our best picks of the week", status: "open", bounty_type: "workforce", business_goal_type: "clipping", currency: "usd", gross_reward_amount: 500, gross_paid_out_amount: 210, submissions_count: 37, accepted_submissions_count: 21, frequency: "weekly", publish_at: null, created_at: iso(6 * DAY) },
-  { id: "bnty_NwUgc2", title: "Record a 30s reaction to a winning parlay", status: "open", bounty_type: "workforce", business_goal_type: "ugc_content", currency: "usd", gross_reward_amount: 300, gross_paid_out_amount: 60, submissions_count: 9, accepted_submissions_count: 4, frequency: "once", publish_at: null, created_at: iso(3 * DAY) },
-  { id: "bnty_NwGrowth3", title: "Follow @northwindpicks and share the free room", status: "completed", bounty_type: "workforce", business_goal_type: "owned_account_growth", currency: "usd", gross_reward_amount: 150, gross_paid_out_amount: 150, submissions_count: 150, accepted_submissions_count: 150, frequency: "once", publish_at: null, created_at: iso(40 * DAY) },
+  { id: "bnty_NwClips1", title: "Clip our best picks of the week", status: "open", bounty_type: "workforce", business_goal_type: "clipping", currency: "usd", description: "Create a short clip from our weekly picks review. Include captions, keep the original context, and submit a public link.", accepted_submissions_limit: 50, gross_reward_amount: 10, gross_paid_out_amount: 210, submissions_count: 37, accepted_submissions_count: 21, frequency: "weekly", publish_at: null, created_at: iso(6 * DAY) },
+  { id: "bnty_NwUgc2", title: "Record a 30s reaction to a winning parlay", status: "open", bounty_type: "workforce", business_goal_type: "ugc_content", currency: "usd", description: "Record an original 30-second reaction. Use clear audio and submit a public video link.", accepted_submissions_limit: 20, gross_reward_amount: 15, gross_paid_out_amount: 60, submissions_count: 9, accepted_submissions_count: 4, frequency: "once", publish_at: null, created_at: iso(3 * DAY) },
+  { id: "bnty_NwGrowth3", title: "Follow @northwindpicks and share the free room", status: "completed", bounty_type: "workforce", business_goal_type: "owned_account_growth", currency: "usd", accepted_submissions_limit: 150, gross_reward_amount: 1, gross_paid_out_amount: 150, submissions_count: 150, accepted_submissions_count: 150, frequency: "once", publish_at: null, created_at: iso(40 * DAY) },
 ];
 const referred = [
   { id: "coma_NwRefTrend", title: "Trendline Trades", status: "active", referred_at: iso(80 * DAY), total_earnings: 1240.5 },
@@ -255,6 +256,11 @@ function flag(args: string[], name: string): string | undefined {
 
 /** Resolves a CLI arg list against the demo dataset. Throws `{code,message}` when unknown. */
 export function demoResolve(args: string[]): unknown {
+  const result = businessDemo(args, demoSeed);
+  return result.handled ? result.value : demoSeed(args);
+}
+
+function demoSeed(args: string[]): any {
   const [group, sub] = args;
   const key = `${group} ${sub ?? ""}`.trim();
   switch (key) {

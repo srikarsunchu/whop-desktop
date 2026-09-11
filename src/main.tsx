@@ -1,3 +1,4 @@
+import { MotionConfig } from "motion/react";
 import React from "react";
 import ReactDOM from "react-dom/client";
 import "frosted-ui/styles.css";
@@ -40,7 +41,9 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <Theme appearance="dark" grayColor="gray" accentColor="blue" successColor="green" dangerColor="red" warningColor="amber">
       <ErrorBoundary>
-        <App />
+        <MotionConfig reducedMotion="user" transition={{ duration: 0.18 }}>
+          <App />
+        </MotionConfig>
       </ErrorBoundary>
       <Toaster position="bottom-right" />
     </Theme>

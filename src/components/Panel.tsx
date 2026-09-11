@@ -145,7 +145,7 @@ export function ErrorState({ error, onRun }: { error: WhopError; onRun?: (comman
 
 /** Handles the three states every query has. */
 export function QueryBody<T>({ q, onRun, empty, children }: { q: UseWhopResult<T>; onRun?: (c: string) => void; empty?: (data: T) => ReactNode | null; children: (data: T) => ReactNode }) {
-  if (q.error) return <ErrorState error={q.error} onRun={onRun} />;
+  if (q.error) return <><ErrorState error={q.error} onRun={onRun} /><Button size="1" variant="soft" style={{marginTop:12}} onClick={q.refresh}>Retry</Button></>;
   if (q.data === undefined) return <Loading />;
   const e = empty?.(q.data);
   if (e) return <>{e}</>;

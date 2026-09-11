@@ -3,7 +3,12 @@ import assert from 'node:assert/strict';
 import ts from 'typescript';
 import { execFileSync } from 'node:child_process';
 const load = async path => {
- const js=ts.transpileModule(fs.readFileSync(path,'utf8'),{compilerOptions:{module:ts.ModuleKind.ES2022,target:ts.ScriptTarget.ES2022}}).outputText;
+ let source=fs.readFileSync(path,'utf8');
+ if(path.endsWith('/demo.ts')) {
+   const business=ts.transpileModule(fs.readFileSync('src/lib/business-demo.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.ES2022,target:ts.ScriptTarget.ES2022}}).outputText;
+   source=source.replace('./business-demo','data:text/javascript;base64,'+Buffer.from(business).toString('base64'));
+ }
+ const js=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.ES2022,target:ts.ScriptTarget.ES2022}}).outputText;
  return import('data:text/javascript;base64,'+Buffer.from(js).toString('base64'));
 };
 const {resolveMedia,mediaArgs,pendingMedia}=await load('src/lib/media.ts');

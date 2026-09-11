@@ -1,6 +1,6 @@
 [package]
 name = "whop-desktop"
-version = "0.4.1"
+version = "0.4.2"
 description = "Whop Desktop — a native macOS command center for Whop businesses, built on the Whop CLI"
 authors = ["srikarsunchu"]
 edition = "2021"

@@ -76,6 +76,7 @@ export function AccountView({}: { runInTerminal: (c: string) => void }) {
         subtitle="Your business, connections, and the people who help run it."
         actions={
           <>
+            <Button variant="surface" onClick={() => window.dispatchEvent(new Event("whopdesktop:setup"))}>Workspace setup</Button>
             <Button variant="soft" onClick={refreshAccounts}>
               Refresh connection
             </Button>

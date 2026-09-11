@@ -64,8 +64,7 @@ export function App() {
   }, []);
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const refreshAccounts = useCallback(() => {
-    (async () => {
+  const refreshAccounts = useCallback(async () => {
       let hints: { account?: string | null; view?: string | null } = {};
       try {
         hints = await invoke("launch_hints");
@@ -126,12 +125,17 @@ export function App() {
       const pick =
         all.find((a) => a.id === remembered) ?? current ?? all[0] ?? null;
       setAccountState(pick);
-    })();
   }, [setView]);
 
   useEffect(() => {
     refreshAccounts();
   }, [refreshAccounts]);
+
+  useEffect(() => {
+    const reopen = () => setWelcomeOpen(true);
+    window.addEventListener("whopdesktop:setup", reopen);
+    return () => window.removeEventListener("whopdesktop:setup", reopen);
+  }, []);
 
   // Keep the shim's demo fixtures current whenever the demo business is active.
   useEffect(() => {
@@ -307,20 +311,12 @@ export function App() {
     <AccountContext.Provider value={ctx}>
       <Welcome
         open={welcomeOpen}
-        onDemo={() => {
-          setAccount(DEMO_ACCOUNT);
-          setView("assistant");
+        onFinish={(selected, assistant) => {
+          setAccount(selected);
+          setView(assistant ? "assistant" : "overview");
+          window.dispatchEvent(new Event("whopdesktop:connections-updated"));
           localStorage.setItem("whopdesktop.welcome.v1", "done");
           setWelcomeOpen(false);
-        }}
-        onConnected={() => {
-          const real = accounts.find((a) => !a.demo);
-          if (real) {
-            setAccount(real);
-            setView("assistant");
-            localStorage.setItem("whopdesktop.welcome.v1", "done");
-            setWelcomeOpen(false);
-          }
         }}
       />
       <div className="app">

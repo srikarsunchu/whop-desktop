@@ -93,11 +93,11 @@ The app looks for `whop` in `$WHOP_BIN`, `PATH`, `~/.local/bin`,
 
 ## Download and first launch
 
-Visit [Whop Desktop](https://whop-desktop.sunchusrikar.chatgpt.site) for the product demo and download status.
+Visit [Whop Desktop](https://srikar-desktop.whop.site/) for the product demo and download status.
 
-[Download the Mac preview](https://github.com/srikarsunchu/whop-desktop/releases/download/v0.4.0-preview.1/Whop-Desktop-0.4.0-Apple-Silicon.dmg). The app is signed with Developer ID and notarized by Apple, with a stapled ticket. The signed DMG includes an Applications shortcut. Requires Apple Silicon (M1 and newer) and macOS 11+.
+[Download the Mac preview](https://github.com/srikarsunchu/whop-desktop/releases/download/v0.4.2-preview.1/Whop-Desktop-0.4.2-Apple-Silicon.dmg). The app is signed with Developer ID and notarized by Apple, with a stapled ticket. The signed DMG includes an Applications shortcut. Requires Apple Silicon (M1 and newer) and macOS 11+.
 
-On first launch, choose **Explore the demo** to open the fictional Northwind Picks business without signing in. **Connect my business** explains Whop CLI installation and sign-in and checks the existing local session. The Assistant separately requires Claude Code installed and signed in. Studio's demo previews are labeled samples, not generated results.
+On first launch, choose **Set up my workspace** to connect Whop, select a business, and connect Claude. Existing local logins are detected. **Try a demo first** opens the fictional Northwind Picks business with optional Claude setup. Skip Claude to start in Overview, or connect it to start in Assistant. Reopen setup from **Account → Workspace setup**. Studio's demo previews are labeled samples; live image generation uses your Whop balance after confirmation.
 
 ## Build
 

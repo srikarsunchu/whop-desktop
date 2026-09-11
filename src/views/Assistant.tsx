@@ -157,11 +157,15 @@ export function Assistant({
   const taRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
-    claudeAvailable().then((path) => {
+    const refresh = () => claudeAvailable().then((path) => {
       setClaudePath(path);
       if (path) void checkConnection();
+      else setConnected(false);
     });
-  }, []);
+    void refresh();
+    window.addEventListener("whopdesktop:connections-updated", refresh);
+    return () => window.removeEventListener("whopdesktop:connections-updated", refresh);
+  }, [checkConnection]);
   useEffect(() => {
     try {
       saveLibrary(acctKey, library);

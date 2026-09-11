@@ -62,7 +62,7 @@ export interface AccountState {
   account: Account | null;
   setAccount: (a: Account) => void;
   accounts: Account[];
-  refreshAccounts: () => void;
+  refreshAccounts: () => Promise<void>;
   cliPath: string | null;
   cliVersion: string | null;
   loggedIn: boolean | null;
@@ -73,7 +73,7 @@ export const AccountContext = createContext<AccountState>({
   account: null,
   setAccount: () => {},
   accounts: [],
-  refreshAccounts: () => {},
+  refreshAccounts: async () => {},
   cliPath: null,
   cliVersion: null,
   loggedIn: null,

@@ -1335,3 +1335,83 @@ button:focus-visible, .chart:focus-visible { outline: 2px solid var(--accent-8);
 .welcome-navigation{justify-content:space-between;margin-top:20px}
 .welcome-error{color:var(--red-11);background:var(--red-a3);border:1px solid var(--red-a5);border-radius:8px;padding:12px;font-size:12px;line-height:1.6;overflow-wrap:anywhere}
 .welcome-first-prompt{margin:0;color:var(--gray-11);font-size:12px;line-height:1.6}
+
+
+/* Curfew shares the desktop's cards, dialogs, typography, and surface tokens. */
+.curfew-page { gap: 20px; }
+.curfew-page .page-header { padding-bottom: 0; }
+.curfew-stats { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; }
+.curfew-main-grid { display:grid; grid-template-columns:minmax(0,1.25fr) minmax(360px,1fr); gap:16px; }
+.curfew-status { display:flex; align-items:center; gap:14px; padding:20px 22px; border:1px solid var(--gray-5); border-radius:12px; background:var(--gray-2); }
+.curfew-status-icon { display:grid; place-items:center; width:40px; height:40px; border-radius:50%; color:var(--green-11); background:var(--green-a3); flex:none; }
+.curfew-status-icon svg { width:21px; height:21px; }
+.curfew-status[data-tone=red] .curfew-status-icon { color:var(--red-11); background:var(--red-a3); }
+.curfew-status[data-tone=amber] .curfew-status-icon { color:var(--amber-11); background:var(--amber-a3); }
+.curfew-status-meta { margin-left:auto; display:flex; align-items:flex-end; flex-direction:column; gap:6px; }
+.curfew-demo-bar,.curfew-footer { display:flex; align-items:center; gap:10px; }
+.curfew-footer { justify-content:space-between; }
+.curfew-signals { display:flex; flex-direction:column; }
+.curfew-signal { display:flex; align-items:center; gap:10px; padding:12px 0; border-bottom:1px solid var(--gray-a3); }
+.curfew-signal:last-child { border:0; padding-bottom:0; }
+.curfew-signal:first-child { padding-top:0; }
+.curfew-signal > div { flex:1; min-width:0; display:flex; flex-direction:column; gap:3px; }
+.curfew-signal-dot { height:6px; width:6px; border-radius:50%; background:var(--gray-8); flex:none; }
+.curfew-signal[data-fired=true] .curfew-signal-dot { background:var(--red-9); box-shadow:0 0 0 3px var(--red-a3); }
+.curfew-activity { padding-top:4px; }
+.curfew-chart-legend { display:flex; flex-wrap:wrap; align-items:center; gap:14px; font-size:12px; color:var(--gray-11); min-height:36px; }
+.curfew-chart-legend > span { display:flex; align-items:center; gap:6px; }
+.curfew-chart-legend i { width:7px; height:7px; border-radius:2px; background:var(--blue-9); }
+.curfew-chart-legend > span:nth-child(2) i { background:var(--red-9); }
+.curfew-chart { display:flex; gap:10px; height:245px; padding-top:20px; }
+.curfew-chart-axis { display:flex; flex-direction:column; justify-content:space-between; font-size:11px; color:var(--gray-9); min-width:20px; }
+.curfew-chart-bars { flex:1; display:flex; align-items:stretch; gap:4px; border-bottom:1px solid var(--gray-5); background:repeating-linear-gradient(to top,transparent 0,transparent calc(50% - 1px),var(--gray-a3) calc(50% - 1px),var(--gray-a3) 50%); }
+.curfew-chart-bars button { flex:1; min-width:0; border:0; padding:0; background:transparent; display:flex; flex-direction:column; justify-content:flex-end; gap:1px; }
+.curfew-chart-bars button:hover,.curfew-chart-bars button:focus-visible { background:var(--gray-a3); outline:1px solid var(--gray-7); }
+.curfew-chart-bars button span { display:block; border-radius:2px 2px 0 0; min-height:0; }
+.curfew-bar-paid { background:var(--blue-9); }
+.curfew-bar-failed { background:var(--red-9); }
+.curfew-chart-times { margin:10px 0 0 30px; display:flex; justify-content:space-between; color:var(--gray-9); font-size:11px; }
+.curfew-empty { display:flex; flex-direction:column; align-items:center; gap:8px; padding:30px; color:var(--gray-10); }
+.curfew-empty > svg { width:24px; height:24px; margin-bottom:3px; }
+.curfew-incident { display:flex; align-items:center; gap:14px; padding:16px 0; border-top:1px solid var(--gray-a3); }
+.curfew-incident:first-child { border:0; padding-top:2px; }
+.curfew-incident-mark { display:grid; place-items:center; height:36px; width:36px; background:var(--amber-a3); color:var(--amber-11); border-radius:8px; flex:none; }
+.curfew-incident-copy { flex:1; display:flex; flex-direction:column; gap:5px; }
+.curfew-countdown { text-align:right; display:flex; flex-direction:column; gap:4px; margin-right:8px; }
+.curfew-countdown strong { font:500 20px var(--font-family-mono,monospace); font-variant-numeric:tabular-nums; }
+.curfew-countdown span { font-size:11px; color:var(--gray-10); }
+.curfew-filters { display:flex; gap:4px; }
+.curfew-filters button { border:0; background:transparent; color:var(--gray-10); padding:5px 8px; border-radius:5px; font:inherit; font-size:12px; }
+.curfew-filters button[aria-pressed=true] { background:var(--gray-a4); color:var(--gray-12); }
+.curfew-table-scroll { overflow-x:auto; }
+.curfew-table { width:100%; border-collapse:collapse; text-align:left; white-space:nowrap; font-size:12px; }
+.curfew-table th { font-weight:400; color:var(--gray-10); padding:8px 10px 12px; }
+.curfew-table td { padding:13px 10px; border-top:1px solid var(--gray-a3); font-variant-numeric:tabular-nums; }
+.curfew-table td:first-child { display:flex; flex-direction:column; gap:4px; }
+.curfew-table td strong { font-weight:500; }
+.curfew-table td:first-child > span { color:var(--gray-9); font-size:11px; }
+.curfew-risk { display:flex; align-items:baseline; gap:4px; }
+.curfew-risk small { color:var(--gray-9); }
+.curfew-risk[data-high=true] { color:var(--red-11); }
+.curfew-connect-card { display:flex; flex-direction:column; align-items:flex-start; gap:18px; padding:32px; }
+.curfew-connect-card > span { max-width:670px; line-height:1.6; }
+.curfew-shield { padding:14px; border-radius:12px; background:var(--blue-a3); color:var(--blue-11); }
+.curfew-shield svg { width:24px; height:24px; }
+.curfew-connect-facts { display:flex; gap:42px; margin:10px 0; }
+.curfew-connect-facts div { display:flex; flex-direction:column; gap:7px; }
+.curfew-connect-facts strong { font-size:22px; font-weight:500; }
+.curfew-connect-facts span { font-size:12px; color:var(--gray-10); }
+.curfew-preview-signals { display:grid; grid-template-columns:repeat(3,1fr); gap:24px; padding:12px 0; }
+.curfew-preview-signals div { display:flex; gap:8px; align-items:center; }
+.curfew-preview-signals svg { color:var(--gray-9); }
+.curfew-form { display:flex; flex-direction:column; gap:18px; margin-top:20px; }
+.curfew-form label { display:flex; flex-direction:column; gap:8px; font-size:13px; }
+.curfew-form input:not([type=checkbox]),.curfew-form select { width:100%; padding:10px 12px; background:var(--gray-2); color:var(--gray-12); border:1px solid var(--gray-6); border-radius:7px; font:inherit; }
+.curfew-form label.curfew-checkbox { flex-direction:row; align-items:center; }
+.curfew-settings-extra { display:flex; justify-content:space-between; border-top:1px solid var(--gray-5); padding-top:18px; }
+.curfew-permissions { display:flex; flex-direction:column; gap:5px; margin-top:12px; font-size:11px; color:var(--gray-11); }
+.curfew-payment-detail { display:flex; flex-direction:column; gap:12px; margin-top:24px; }
+.curfew-payment-detail p { margin:0; font-size:13px; }
+.curfew-message { display:flex; align-items:center; gap:10px; padding:14px; border:1px solid var(--amber-a6); background:var(--amber-a3); border-radius:8px; font-size:13px; }
+.curfew-message span { flex:1; }
+@media(max-width:1100px) { .curfew-main-grid { grid-template-columns:1fr; } .curfew-chart { height:200px; } .curfew-stats { grid-template-columns:repeat(2,minmax(0,1fr)); } .curfew-status-meta { max-width:180px; } }

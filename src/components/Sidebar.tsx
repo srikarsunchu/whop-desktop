@@ -16,6 +16,7 @@ import {
   ImageIcon,
   MagicWandIcon,
   StarIcon,
+  LockClosedIcon,
   CubeIcon,
   EyeOpenIcon,
   GearIcon,
@@ -37,6 +38,7 @@ export type ViewId =
   | "ads"
   | "studio"
   | "apps"
+  | "curfew"
   | "growth"
   | "assistant"
   | "account";
@@ -56,6 +58,7 @@ export const NAV: {
   { id: "studio", label: "Studio", icon: ImageIcon },
   { id: "apps", label: "Apps", icon: RocketIcon },
   { id: "growth", label: "Growth", icon: StarIcon },
+  { id: "curfew", label: "Curfew", icon: LockClosedIcon },
   { id: "assistant", label: "Assistant", icon: ChatBubbleIcon },
   { id: "account", label: "Account", icon: GearIcon },
 ];
@@ -213,7 +216,7 @@ export function Sidebar({
         {[
           {
             label: "Business",
-            ids: ["overview", "money", "members", "products", "people"],
+            ids: ["overview", "money", "members", "products", "people", "curfew"],
           },
           { label: "Grow", ids: ["ads", "studio", "growth"] },
           { label: "Build", ids: ["apps"] },

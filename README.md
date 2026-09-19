@@ -36,6 +36,7 @@ Every screen is a `whop …` command with a face.
 | **Ads** | Meta campaigns from `ad-campaigns list` with 30-day spend, impressions, clicks, results and cost per result; ad groups, ads, audiences, connected social accounts; pause / unpause / duplicate / delete, retry payment; "Plan a campaign with Claude" |
 | **Studio** | Reference-based image/video generation, editable typography and cropping, named creative history, and a local ad-draft handoff; live generation is billed from your Whop balance |
 | **Apps** | `apps list`, open the hosted domain, builds and logs, deploy preview, and **blueprints**: clone any whop.com/blueprints app with `apps init --template app_…` |
+| **Curfew** | Native fraud dashboard: payment activity, six detection signals, risk details, incident queue, launch mode, protection settings, and interactive demo scenarios |
 | **Growth** | bounties (`bounties list`: pool, paid out, submissions; cancel), referred businesses and the partner leaderboard (`partners *`) |
 | **Assistant** | a Claude chat that operates the business through the CLI: every command it runs shows as a card with its output; writes stay blocked until you allow them. **Raw CLI** mode is one toggle away: history (↑), ⌘L clear, JSON highlighting, copy and re-run |
 | **Account** | `auth status`, `auth list` (switch profiles), `accounts get`, `team-members list`, CLI binary and version |
@@ -67,6 +68,14 @@ Plus:
   Google passkey workaround.
 - **Menu-bar icon**, **⌘⇧W** global show/hide, close-hides-the-window.
 - **Sparklines** on the KPI tiles (net revenue, paid active members, new users, balance) from `whop stats get … --interval day`.
+
+### Curfew fraud dashboard
+
+Choose **Curfew** under Business. The dashboard uses the same local React/Frosted components as the rest of Whop Desktop; no website is embedded. The demo business includes normal traffic, a card-testing attack, and a product-launch scenario, with local controls that never call live services.
+
+For a live business, connect a matching Whop account API key through the native setup dialog. It explains the permissions and automatic refund/access-removal behavior before submission. The desktop verifies the key's business with Whop before handing it to the existing Curfew backend. Each business has a separate session cookie file under the app data directory (directory mode 0700, files mode 0600). API keys are sent through process stdin and are not saved by the desktop or placed in command-line arguments. The service encrypts them at rest.
+
+Live data and controls use a fixed-endpoint Rust JSON bridge to `https://curfew-blush.vercel.app`. The app refreshes every 15 seconds, shows connection failures without clearing loaded data, and confirms changes to launch mode, settings, pending actions, and disconnection. Monitoring continues on Curfew’s server while the app is closed. Signing in to Whop CLI alone does not connect Curfew.
 
 ## Design
 
@@ -121,8 +130,7 @@ WHOP_DESKTOP_ACCOUNT=biz_demoNorthwind WHOP_DESKTOP_VIEW=overview \
 - The main window is a local React app. Its only native capability is a
   handful of Tauri commands in `src-tauri/src/lib.rs` that run the `whop`
   binary (never a shell) with `--format json` and return the output.
-- **No API key or token ever touches the app.** Authentication, account
-  selection and pagination stay in the CLI. Switching profiles is
+- **Whop CLI authentication stays in the CLI.** Curfew has a separate, explicit connection flow: its account API key passes through the native JSON bridge to the Curfew service, and its session is stored separately per business. Switching profiles is
   `whop auth switch`.
 - Every write (cancel a membership, publish a product, switch profile) shows
   the exact command and asks first. The CLI has no sandbox or dry-run.

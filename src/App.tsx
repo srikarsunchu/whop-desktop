@@ -18,6 +18,7 @@ import { Money } from "./views/Money";
 import { Members } from "./views/Members";
 import { Products } from "./views/Products";
 import { People } from "./views/People";
+import { Curfew } from "./views/Curfew";
 import { Apps } from "./views/Apps";
 import { Assistant } from "./views/Assistant";
 import { Ads } from "./views/Ads";
@@ -284,6 +285,9 @@ export function App() {
       break;
     case "studio":
       page = <Studio onOpenAds={() => setView("ads")} />;
+      break;
+    case "curfew":
+      page = <Curfew key={account?.id} />;
       break;
     case "apps":
       page = <Apps runInTerminal={runInTerminal} ask={ask} />;

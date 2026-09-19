@@ -5,8 +5,8 @@
 //!
 //! * The MAIN window is a local React app (`WebviewUrl::App`). Its only native
 //!   capability is a handful of commands below that shell out to the `whop`
-//!   binary with `--format json`. No API keys or tokens ever pass through this
-//!   app: authentication, account selection and pagination stay in the CLI.
+//!   binary with `--format json`. CLI authentication stays in the CLI.
+//!   Curfew uses a separate fixed-endpoint JSON bridge with business-scoped sessions.
 //! * An optional WEB window loads `https://whop.com` as a top-level external
 //!   URL for the parts of Whop that have no CLI (chat, storefront editing).
 //!   That window is NEVER granted Tauri IPC (`capabilities/main-capability.json`
@@ -16,6 +16,7 @@
 //!   driven from Rust.
 
 pub mod assistant;
+mod curfew;
 
 use std::collections::BTreeMap;
 use std::fs;
@@ -1135,6 +1136,7 @@ pub fn run() {
             launch_hints,
             open_web_window,
             open_external,
+            curfew::curfew_request,
             studio_upload_image,
             studio_read_image,
             studio_save,

@@ -1,11 +1,11 @@
 # Whop Desktop
 
-[Watch the demo and read the install guide](https://srikar-desktop.whop.site/). Landing page source: [website/](./website/).
+A native Mac app for running a Whop business, built on the
+[Whop CLI](https://whop.sh). Revenue, balance, members, products, ads, apps
+and a Claude assistant in one window. Every panel shows the `whop` command
+that produced it, and ⌘K runs any command you type.
 
-A native macOS command center for running a Whop business, built on the
-[Whop CLI](https://whop.sh). Revenue, balance, members, memberships, products,
-visitors and apps in one window, with a ⌘K palette that runs any `whop`
-command. Every panel shows the exact command that produced it.
+Site, demo and install guide: [srikar-desktop.whop.site](https://srikar-desktop.whop.site/). Source for the site is in [website/](./website/).
 
 <p align="center">
   <img src="https://img.shields.io/badge/platform-macOS%2011%2B-151515" alt="Platform: macOS 11+" />
@@ -21,6 +21,17 @@ command. Every panel shows the exact command that produced it.
 > [siyabendoezdemir/whop-desktop](https://github.com/siyabendoezdemir/whop-desktop) (MIT).
 
 ---
+
+## Demos
+
+Four short recordings, all on the Northwind Picks demo business, cut for time. Click a frame to play.
+
+| | |
+|---|---|
+| [![Product demo](website/public/demo-poster.jpg)](website/public/demo.mp4) | [![Tour: Assistant, Overview, Studio, Ads](docs/media/tour.jpg)](docs/media/tour.mp4) |
+| **Product demo**, 17s. Ask a question, watch the command run, read the answer. Also on the [site](https://srikar-desktop.whop.site/). | **Tour**, 48s. Assistant, Overview, Studio and Ads in one sitting. |
+| [![Creative workflow](docs/media/creative-workflow.jpg)](docs/media/creative-workflow.mp4) | [![Curfew fraud dashboard](docs/media/curfew.jpg)](docs/media/curfew.mp4) |
+| **Creative workflow**, 27s. Ask for an ad in chat, finish it in Studio, save it as an ad draft. | **Curfew**, 23s. A card-testing attack showing up in the fraud dashboard. |
 
 ## What it does
 
@@ -71,11 +82,11 @@ Plus:
 
 ### Curfew fraud dashboard
 
-Choose **Curfew** under Business. The dashboard uses the same local React/Frosted components as the rest of Whop Desktop; no website is embedded. The demo business includes normal traffic, a card-testing attack, and a product-launch scenario, with local controls that never call live services.
+**Curfew** under Business is a fraud dashboard drawn with the same Frosted components as everything else. Nothing is embedded from the web. The demo business ships three scenarios (normal traffic, a card-testing attack, a product launch) that run in memory and never touch a live service. See [docs/curfew-native.md](docs/curfew-native.md) and the [23-second demo](docs/media/curfew.mp4).
 
-For a live business, connect a matching Whop account API key through the native setup dialog. It explains the permissions and automatic refund/access-removal behavior before submission. The desktop verifies the key's business with Whop before handing it to the existing Curfew backend. Each business has a separate session cookie file under the app data directory (directory mode 0700, files mode 0600). API keys are sent through process stdin and are not saved by the desktop or placed in command-line arguments. The service encrypts them at rest.
+To watch a real business, paste a Whop account API key for that business into the setup dialog. The dialog spells out the permissions and the automatic refund and access-removal behavior before you submit. The app checks the key against Whop, confirms it belongs to the selected business, then hands it to the Curfew backend over stdin. The key is never written to disk by the app and never appears in a command line. Each business gets its own session cookie file under the app data directory, mode 0600 in a 0700 directory.
 
-Live data and controls use a fixed-endpoint Rust JSON bridge to `https://curfew-blush.vercel.app`. The app refreshes every 15 seconds, shows connection failures without clearing loaded data, and confirms changes to launch mode, settings, pending actions, and disconnection. Monitoring continues on Curfew’s server while the app is closed. Signing in to Whop CLI alone does not connect Curfew.
+The Rust bridge talks to one fixed endpoint, `https://curfew-blush.vercel.app`. It polls every 15 seconds, keeps showing the last good data if a poll fails, and asks before changing launch mode, settings, pending actions or disconnecting. Curfew keeps monitoring on its own server while the app is closed. Logging in to the Whop CLI does not connect Curfew.
 
 ## Design
 
@@ -102,11 +113,11 @@ The app looks for `whop` in `$WHOP_BIN`, `PATH`, `~/.local/bin`,
 
 ## Download and first launch
 
-Visit [Whop Desktop](https://srikar-desktop.whop.site/) for the product demo and download status.
+[Download the Mac preview](https://github.com/srikarsunchu/whop-desktop/releases/download/v0.4.2-preview.1/Whop-Desktop-0.4.2-Apple-Silicon.dmg) (0.4.2, Apple Silicon, macOS 11+). Signed with Developer ID, notarized, stapled. Drag it into Applications.
 
-[Download the Mac preview](https://github.com/srikarsunchu/whop-desktop/releases/download/v0.4.2-preview.1/Whop-Desktop-0.4.2-Apple-Silicon.dmg). The app is signed with Developer ID and notarized by Apple, with a stapled ticket. The signed DMG includes an Applications shortcut. Requires Apple Silicon (M1 and newer) and macOS 11+.
+First launch asks two things. **Set up my workspace** finds your existing Whop and Claude logins, or walks you through them, then picks a business. **Try a demo first** opens Northwind Picks, a made-up business, and still offers to connect Claude so the chat works. Skip Claude and you land in Overview; connect it and you land in Assistant. The setup is always available again under **Account → Workspace setup**. Details in [docs/onboarding.md](docs/onboarding.md).
 
-On first launch, choose **Set up my workspace** to connect Whop, select a business, and connect Claude. Existing local logins are detected. **Try a demo first** opens the fictional Northwind Picks business with optional Claude setup. Skip Claude to start in Overview, or connect it to start in Assistant. Reopen setup from **Account → Workspace setup**. Studio's demo previews are labeled samples; live image generation uses your Whop balance after confirmation.
+Studio's demo previews are labeled samples. Live image generation costs money from your Whop balance and asks first.
 
 ## Build
 
@@ -130,8 +141,9 @@ WHOP_DESKTOP_ACCOUNT=biz_demoNorthwind WHOP_DESKTOP_VIEW=overview \
 - The main window is a local React app. Its only native capability is a
   handful of Tauri commands in `src-tauri/src/lib.rs` that run the `whop`
   binary (never a shell) with `--format json` and return the output.
-- **Whop CLI authentication stays in the CLI.** Curfew has a separate, explicit connection flow: its account API key passes through the native JSON bridge to the Curfew service, and its session is stored separately per business. Switching profiles is
-  `whop auth switch`.
+- **Whop CLI authentication stays in the CLI.** Switching profiles is
+  `whop auth switch`. Curfew is connected separately, with its own key and
+  its own per-business session file.
 - Every write (cancel a membership, publish a product, switch profile) shows
   the exact command and asks first. The CLI has no sandbox or dry-run.
 - The optional whop.com window loads the site as a top-level external URL and

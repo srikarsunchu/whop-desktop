@@ -1,48 +1,52 @@
-# Studio workspace
+# Studio
 
-Studio now keeps the brief, selected creative, version history and image finishing controls together.
+Studio is where you make an image or a short video for one offer. The brief, the selected creative, its version history and the finishing controls live on one screen.
 
-## Available
+## The offer
 
-- Product selection seeds an editable brief with the title and description when returned by Whop.
-- Up to four PNG/JPEG/WebP reference files, selected or dropped from Finder (15 MB each).
-- Live reference uploads create private Whop files, upload their bytes, and wait for file readiness before adding them to the composer. Demo references stay local.
-- Make a variation reuses a result as a reference; Animate uses its original image as the opening frame. Neither button submits a generation.
-- Headline, supporting line, text color, top/bottom placement and optional shading are editable for images. Original, square, story and landscape compositions use one canvas renderer for preview and PNG export.
-- Image PNG and original video MP4 exports save to Downloads and reveal the file in Finder.
-- Existing jobs are checked across app views and resume after relaunch. Status checks never submit generation requests.
-- Finishing settings persist per account and asset. Removing an asset removes its local history entry, not the remote file.
+Pick a product and Studio pins an offer card at the top: product, default-plan price, destination. It stays there while you scroll. The product's title and description seed an editable brief when Whop returns them. Products can also open Studio with the offer already filled in.
 
-## Validation
+## The brief
 
-- `pnpm test:media`: reference argument serialization, empty reference omission, four-reference limit, media resolution/failure/idempotency cases and bundled MP4 decode.
-- `pnpm build` and native Tauri app build.
-- Native UI: selected a sample image, added a headline, chose story format, exported and verified a 1080 × 1920 PNG; handed the original image to the video composer and completed the no-charge sample flow.
+Pick a purpose first (social post, paid ad, product cover, or custom), then image or video settings. Placement goes into the generation brief. The actual pixel dimensions come from local cropping, not from the model.
 
-## Boundaries
+Up to four PNG, JPEG or WebP references, picked or dropped from Finder, 15 MB each. On a live business each reference becomes a private Whop file, uploaded and confirmed ready before the composer uses it. In demo mode references stay local.
 
-Live paid generation and network reference upload still need an account-backed integration check; no real Whop balance was charged during implementation. Samples remain explicitly labeled and do not respond to prompts or references.
+Briefs survive generation and navigation. Every generated asset remembers its offer, purpose, format and concept.
 
-Video typography, logo layers, inline assistant conversations and completion notifications are not part of this increment. Animate uses the original image, not the typography composition. Format presets center-crop locally and do not claim model-level aspect-ratio control. Provider resolution support varies; the CLI does not expose a model selector.
+**Make a variation** feeds a result back in as a reference. **Animate** uses the original image as the opening frame of a video. Neither button generates anything by itself.
 
+## Artwork and copy
 
-## Seller workflow update
+The inspector has three tabs. **Brief** is above. **Artwork** has the format (original, square, story, landscape), crop position in both axes, a center-crop button, and typography: headline, supporting line, text color, top or bottom placement, optional shading. Composition guides help you judge framing and are not exported. Reset keeps the format you chose. **Copy** opens a post preview with the headline and caption.
 
-- A persistent offer card keeps the selected product, default plan price and destination visible.
-- Social post, paid ad, product cover and custom purposes precede image/video settings. Placement is included in the generation brief; exact image output dimensions come from local composition.
-- One inspector separates Brief from Adjust artwork. The generation action remains outside its scrollable fields.
-- Briefs persist after generation and navigation. Each generated asset carries its offer, purpose, format and concept metadata.
-- Cropping can be repositioned horizontally and vertically. Composition guides and a generic post preview help review framing; guides are not exported and do not claim platform approval.
-- Use creative supports download plus separate post-copy copying, or a local ad draft. IndexedDB retains the rendered image snapshot, copy, offer and destination together. Saving a draft does not upload, publish or spend.
-- Ads shows local Studio drafts separately from remote campaigns, with editable copy and a planning handoff to the existing assistant. Finished image drafts still need upload before a live campaign can use them.
+One canvas renderer draws the preview and the PNG export, so what you see is what you get. Preview updates are batched on animation frames. Exports and ad drafts render a fresh canvas from the current edits before capturing bytes.
 
-Native verification: selected VIP Picks and confirmed its $49/month default plan, saved a sample image draft with an ad headline and post copy, and verified that Ads displayed the finished image (including typography), offer, price and copy together with a clear unpublished label. Automated checks cover prompt length, placement hints, destination validation and crop coordinates.
+Finishing settings are saved per account and per asset. Removing an asset removes its local history, not the remote file.
 
-## Creative review workflow
+## Getting it out
 
-- The offer bar stays pinned while scrolling, preserving product, default-plan price, and destination.
-- Brief, Artwork, and Copy are separate inspector tabs. Copy opens a live post preview; Artwork returns to the canvas.
-- Artwork includes format selection, crop position values, and a center-crop action. Reset preserves the selected format.
-- Preview rendering is scheduled on animation frames. Exports and ad drafts render a fresh canvas from current edits before capturing bytes.
-- The handoff dialog previews the finished creative alongside its offer, price, destination, and format.
-- Ad drafts identify missing headline, caption, and HTTPS destination before enabling campaign planning. Complete drafts point to audience and budget planning; saving never publishes an ad.
+**Use creative** offers a download, a copy of the post text on its own, or a local ad draft. Image exports are PNG, video exports are the original MP4. Both land in Downloads and are revealed in Finder.
+
+An ad draft is saved in IndexedDB with the rendered image, the copy, the offer and the destination. Saving never uploads, publishes or spends. The handoff dialog shows the finished creative next to its offer, price, destination and format, and tells you if the headline, caption or HTTPS destination is missing. A complete draft points you on to audience and budget planning in Ads. Ads lists local Studio drafts apart from remote campaigns, with editable copy and a handoff to the assistant. A draft still needs an upload before a live campaign can use it.
+
+## Jobs
+
+Open jobs are polled from any view and resume after a relaunch. Polling never submits a generation.
+
+## What I tested
+
+```bash
+pnpm test:media
+pnpm build
+```
+
+The media suite covers reference argument serialization, empty references being omitted, the four-reference limit, media resolution and failure cases, idempotency, and decoding the bundled MP4. Other checks cover prompt length, placement hints, destination validation and crop coordinates. The native Tauri build passes.
+
+In the native app: picked a sample image, added a headline, chose story format, exported and got a 1080 × 1920 PNG. Handed the original image to the video composer and ran the free sample flow. Picked VIP Picks, saw its $49 a month default plan, saved a sample draft with an ad headline and post copy, and saw Ads show the finished image with typography, offer, price and copy, labeled unpublished.
+
+## Not yet
+
+Live paid generation and live reference upload have not been run against a real account. No balance was charged while building this. Samples are labeled and ignore prompts and references.
+
+No typography on video, no logo layer, no inline assistant conversation, no completion notification. Animate uses the original image, not the typography composition. Format presets are a local center crop, not model-level aspect control. The CLI has no model selector, so resolution depends on the provider.

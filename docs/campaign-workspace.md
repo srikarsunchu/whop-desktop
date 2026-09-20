@@ -1,17 +1,30 @@
 # Campaign workspace
 
-The Ads page manages campaigns, their ad groups, and their ads in a parent-filtered workspace. Clicking a campaign opens its groups; clicking a group opens its ads. Search and delivery filters apply to the displayed first 100 results; the UI indicates additional pages when present.
+The Ads page is three nested lists. Click a campaign to see its ad groups, click a group to see its ads. Search and delivery filters work on the loaded page, which is the first 100 rows. The UI says when there are more.
 
-Supported controls:
-- Create campaign drafts with objective, daily/lifetime budget, schedule and special category.
-- Edit campaign title, budget and schedule; review launch; pause/resume, duplicate and delete.
-- Create paused groups with country targeting, audience presets, placements and optimization goal; edit group settings and delivery.
-- Create/edit ads with Studio image uploads, headline, caption, CTA, destination and a connected Facebook page; pause/resume, duplicate and delete.
-- Review each mutation before it runs. Creation uses a stable idempotency key across retries. Failed actions remain open with their error.
-- Demo mutations are persisted separately on this Mac and never call live write commands. Sample artwork is blocked from live upload.
+## What you can do
 
-Limits: no automatic campaign creation from Claude; no live mutations exercised during development. Country targeting replaces existing region targeting when changed. Advanced targeting and lead-form configuration are not yet exposed. Image uploads poll Whop file readiness; videos can use an existing Whop file ID. Included in the 0.4.1 preview release.
+- Create a campaign draft with an objective, a daily or lifetime budget, a schedule and a special category.
+- Edit a campaign's title, budget and schedule. Review it before launch. Pause, resume, duplicate, delete.
+- Create a paused ad group with country targeting, an audience preset, placements and an optimization goal. Edit its settings and delivery.
+- Create or edit an ad with a Studio image, headline, caption, CTA, destination and a connected Facebook page. Pause, resume, duplicate, delete.
 
-Validation: run `node scripts/test-campaigns.mjs`, `pnpm build`, and `pnpm test:media`.
+Every write shows a review dialog first. Creates carry a stable idempotency key so a retry does not make two of them. If a write fails the dialog stays open with the error.
 
-Native validation: created a local `Studio launch test` campaign with a 25/day budget; drilled into it and created a paused `US prospecting` group; opened its ads, selected the existing Studio sample, attached its finished artwork and populated copy, selected the demo Facebook page, added an example.com destination, and created the paused demo ad. Verified each review dialog and parent-filtered result. No live writes or charges occurred.
+Demo writes are stored on this Mac and never reach the live CLI. Sample artwork cannot be uploaded to a live ad.
+
+## Limits
+
+Claude does not create campaigns on its own. Changing country targeting replaces whatever region targeting was there. Advanced targeting and lead forms are not exposed. Image uploads poll Whop until the file is ready. Video ads need an existing Whop file id. I did not run a live write during development.
+
+Shipped in the 0.4.1 preview.
+
+## What I tested
+
+```bash
+node scripts/test-campaigns.mjs
+pnpm build
+pnpm test:media
+```
+
+In the native app, on the demo business: made a campaign called Studio launch test at $25 a day, opened it and made a paused group called US prospecting, opened that and made a paused ad from the existing Studio sample with its artwork and copy, the demo Facebook page and an example.com destination. Every review dialog and every nested list behaved. No live writes, no charges.

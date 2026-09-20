@@ -1,15 +1,20 @@
-# 0.4.0 preview release
+# 0.4.0 preview
 
-- Website: https://srikar-desktop.whop.site/
-- Website source: website/ (TanStack Start, Whop hosting).
+First signed build. Apple Silicon, macOS 11+.
+
 - Release: https://github.com/srikarsunchu/whop-desktop/releases/tag/v0.4.0-preview.1
-- Binary source commit: 819d1e4e2852a4be611407e9f8e29c1ee98ad468.
-- Asset: Whop-Desktop-0.4.0-Apple-Silicon.dmg, with SHA-256 checksum asset.
-- Apple Silicon, macOS 11+, version 0.4.0.
-- Developer ID Application certificate issued through the Apple Developer portal for team 7JMHN6T2PQ. Xcode certificate creation was disabled, but portal creation worked.
-- App signed with hardened runtime and repository entitlements.
-- Notarization submitted using xcodebuild -exportArchive, method developer-id, destination upload, and the existing Xcode account. Exported with -exportNotarizedApp.
-- The app has a valid stapled notarization ticket. Gatekeeper accepts the packaged app as Notarized Developer ID.
-- DMG wrapper is signed; notarization ticket is attached to the app inside it, not separately to the DMG.
-- Read-only mount verification passed: strict code signature, staple validation, Gatekeeper assessment, and DMG integrity.
-- Signing private key and local release workspace are outside the repository. Never commit signing credentials.
+- Asset: `Whop-Desktop-0.4.0-Apple-Silicon.dmg`, plus a SHA-256 checksum file.
+- Built from commit `819d1e4e`.
+- Site: https://srikar-desktop.whop.site/ (source in `website/`).
+
+## How it was signed
+
+The Developer ID Application certificate was issued from the Apple Developer portal for team 7JMHN6T2PQ. Xcode refused to create one, the portal did not.
+
+The app is signed with the hardened runtime and the entitlements checked into the repo. Notarization went through `xcodebuild -exportArchive` with the developer-id method and upload destination, using the Xcode account already on the machine, then `-exportNotarizedApp` to pull the stapled app back out.
+
+The ticket is stapled to the app, not the DMG. The DMG itself is signed. Gatekeeper reports the app as Notarized Developer ID.
+
+Checked on a read-only mount: strict codesign verify, stapler validate, spctl assess, and DMG integrity. All passed.
+
+The signing key and the release working directory are outside this repo. Do not commit signing material.

@@ -1,15 +1,21 @@
 # First-launch onboarding
 
-Version 0.4.2 offers a guided setup from Welcome and from **Account → Workspace setup**. Existing installs keep their completed-welcome flag and are not forced through setup again.
+0.4.2 adds a setup flow. It runs from Welcome on a fresh install and from **Account → Workspace setup** any time after. Existing installs keep their completed flag and are not sent through it again.
 
-1. **Business:** detect the installed Whop CLI, show the official install command only when missing, invoke native browser OAuth, then select a business. Refresh waits for the actual connection check. A signed-in account with no available businesses gets a recovery path to Whop and another login.
-2. **Assistant:** detect Claude Code and its authentication independently. Offer installation help or native browser sign-in, or skip this step. Explain that chat uses the user's Claude account and that live image generation is separately billed from Whop balance after confirmation.
-3. **Ready:** show the selected workspace and connection status. Connected Claude users land in Assistant; users who skip Claude land in Overview. Finishing setup refreshes the already-mounted Assistant's connection state.
+Three steps.
 
-Demo setup skips Whop authentication and selects Northwind Picks. It still offers optional Claude setup rather than dropping a new user into an unusable chat. Demo data and Studio samples are identified as such.
+1. **Business.** Check for the Whop CLI, and show the install command only if it is missing. Open the browser OAuth. Pick a business. Refresh actually waits for the connection check. If you are signed in but have no businesses, there is a path to Whop and back to log in again.
+2. **Assistant.** Check for Claude Code and its login, separately. Offer install help, browser sign-in, or skip. The step says that chat runs on your Claude account and that live image generation is billed separately from your Whop balance, after a confirmation.
+3. **Ready.** Show the workspace and connection status. If Claude is connected you land in Assistant, otherwise Overview. Finishing setup refreshes the Assistant that is already mounted underneath.
 
-The setup never installs software automatically, submits a chat, generates paid media, or publishes a campaign. Browser sign-in uses the existing native commands; tokens do not enter the setup UI.
+The demo path skips Whop auth and picks Northwind Picks. It still offers the Claude step, so a new user is not dropped into a chat that cannot answer. Demo data and Studio samples are labeled as such.
 
-The 0.4.2 preview includes this flow in the signed and notarized Mac installer.
+Setup never installs software, sends a chat message, generates paid media or publishes a campaign. Browser sign-in uses the existing native commands. Tokens never pass through the setup UI.
 
-Validation: production frontend and native app builds passed, plus the assistant and business regression suites. Browser walkthrough covered missing Whop installation, skipping Claude, demo-to-Overview completion, and reopening setup. Native walkthrough detected the existing Whop login and four businesses, preserved Frame selection, detected authenticated Claude, and returned to the saved Assistant conversation. Fresh OAuth and installing dependencies on a clean Mac were not exercised in this run.
+The 0.4.2 preview includes this flow.
+
+## What I tested
+
+Production frontend and native builds, plus the assistant and business suites. In the browser build: no Whop CLI installed, skipping Claude, demo through to Overview, and reopening setup. In the native app: it found the existing Whop login and four businesses, kept the Frame selection, found the Claude login, and returned to the saved Assistant conversation.
+
+Not tested: fresh OAuth and installing the CLIs on a clean Mac.

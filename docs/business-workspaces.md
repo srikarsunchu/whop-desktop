@@ -1,57 +1,49 @@
 # Business workspaces
 
-Local implementation, September 10, 2026. Not a published release.
+Built September 10, 2026 in the local development build. The public installer at the time was 0.4.1 and was not replaced by this work.
 
-The remaining business pages now use searchable lists, in-page detail workspaces, editable forms, and explicit review before mutations. Ads and Studio remain available. Products can seed a new Studio brief with the selected offer, price, and description.
+The business pages went from command output with a face to actual workspaces: searchable lists, a detail view for each record, editable forms, and a review dialog in front of every write.
 
-## Available workflows
+## Page by page
 
-- Products: create a hidden product, edit copy, preview content, add/edit pricing plans, publish/unpublish/delete, open its storefront, and continue to Studio. Editing a plan first retrieves its details and preserves custom checkout fields.
-- Members: membership and member directories, detail inspection, free-plan invitation, pause/resume billing, and cancellation either immediately or at period end. A member can reveal matching memberships from the first 100 records.
-- Money: balances, income statement, financial activity, payout/dispute details, and a reviewed withdrawal using a saved destination and balance currency. Quotes are requested during review. Standard speed is used and bank-name warnings are not bypassed.
-- People: customer facts, full profile inspection, event activity, and a link into matching memberships.
-- Growth: create a bounty with explicit reward-per-submission × winner-slot funding, edit its brief, inspect public submissions, cancel a bounty, inspect referrals, and enroll as a partner.
-- Apps: create/scaffold an app or blueprint in a specified folder, inspect builds and logs, deploy a preview, and separately review promotion to production.
-- Account: business/connection details, saved profiles, browser OAuth sign-in, team invitation and role editing. The native sign-in bridge keeps the authorization URL outside the renderer and times out after five minutes.
-- Overview: recommended actions open the relevant business workspace rather than a command draft.
+**Overview** leads with net revenue and what needs attention. The membership, new-user and balance cards each go somewhere and retry in place if a read fails. Period metrics show their UTC range and remember the period for the session. Available balance is the current figure in the returned currency, not a total-balance fallback. Needs attention is computed from live past-due memberships, disputes and products, up to 100 each, not from canned recommendations. Its links open the page with the right filter already applied. Dispute links wait for layout before scrolling. Latest transactions are in time order. The briefing button drafts an assistant prompt that includes the period.
+
+**Money** keeps the older layout: a big total balance with the stacked breakdown, income statement beside it, financial activity full width, payouts and disputes side by side. Underneath that are searchable, paginated tables, record details, saved payout methods and a reviewed withdrawal. A withdrawal uses a saved destination in the balance currency, fetches a quote during review, uses standard speed, and does not skip bank-name warnings. Detail dialogs open only when you pick a record. With several currencies, totals and the breakdown follow the one you select.
+
+**Members** is a full-width table: customer, product, plan, status, renewal or access timing, joined date. A snapshot above it counts active and trialing, past-due, canceling and paused from the first 100 rows, and says so. Picking a customer opens a profile with billing and access context and the actions: invite to a free plan, pause or resume billing, cancel now or at period end. Paused and canceled memberships no longer show a stale date as an upcoming renewal. A member can reveal their memberships from the first 100 records.
+
+**Products** is a full-width offer table with a pricing and content dialog. Create a hidden product, edit copy, preview content, add or edit plans, publish, unpublish, delete, open the storefront, or continue into Studio with the offer and brief filled in. Editing a plan fetches it first so custom checkout fields survive.
+
+**People** is a customer table with lifetime value, purchase count, location and last seen, plus profile and activity dialogs and a link into matching memberships.
+
+**Growth** puts bounty status, submission counts, accepted work and payouts in one table, with the brief and funding details readable full width. Create a bounty funded as reward per submission × winner slots, edit the brief, look at public submissions, cancel it, look at referrals, or enroll as a partner.
+
+**Apps** shows project cards, build history, preview deployment reviews and a timestamped runtime log. Create or scaffold an app or blueprint into a folder you choose, deploy a preview, and separately review promotion to production.
+
+**Account** separates business identity, connection, profile switching and team access. Browser OAuth runs through a native bridge that keeps the authorization URL out of the renderer and times out after five minutes. Invite team members and edit roles. Owners are not offered ordinary role changes.
 
 ## Shared behavior
 
-Search and sorting apply to the current page, explicitly labeled. Lists expose previous/next controls when cursor metadata is returned. Financial activity uses `--limit`/`--cursor`; other lists use `--first`/`--after`.
+Search and sort apply to the loaded page and the label says so. Previous and next appear when the CLI returns cursor metadata. Financial activity pages with `--limit` and `--cursor`, everything else with `--first` and `--after`.
 
-Forms and filters persist in session storage, scoped by account; demo mutations persist in local storage on this Mac. Supported create requests keep stable idempotency keys across retries and reopening a draft. Changing the submitted body creates a new key. Failed forms remain open. Active writes disable the form and cannot be dismissed through the dialog. Successful mutations invalidate cached results and older reads cannot repopulate the cache afterward.
+Forms and filters persist in session storage per account. Demo writes persist in local storage on this Mac and never touch the live bridge. Demo products, plans, memberships, payouts, team records and app previews are all stored locally, and a demo payout lowers the available balance and shows up in activity. The sample population is a handful of illustrative records, not a full population behind the aggregate numbers.
 
-Demo writes never call the live command bridge. Demo product/plan relationships, membership changes, payouts, team records, and app previews are stored locally. Demo payouts affect available balance and appear in financial activity. The sample population is illustrative rather than an exhaustive backing population for aggregate analytics.
+Creates keep a stable idempotency key across retries and across closing and reopening a draft. Change the body and you get a new key. A failed form stays open. A form mid-write is disabled and cannot be dismissed. A successful write invalidates the cache, and stale reads cannot repopulate it afterwards.
 
-## Validation
+Tables keep keyboard-reachable record buttons, filters, refresh and pagination. Long dialogs scroll inside the window. Review dialogs return you to the record they came from.
 
-- Frontend TypeScript/production build and native macOS app build.
-- `node scripts/test-business.mjs`: validation, hidden product creation, product/plan relationships, pagination, persisted actions, free-plan restrictions, membership transitions, bank-warning guard, and retry deduplication.
-- Existing campaign and media/Studio validation suites.
-- Native demo walkthrough: created Creator launch kit, added Monthly access at $29/month, verified product price refresh, and opened Studio with the offer and brief. Paused Kayla Underwood's demo membership and verified Resume replaced Pause. Submitted a $25 local demo withdrawal and verified the available balance decreased. Inspected Growth, Apps build/log controls, Account/team layout, and People.
+## What I tested
 
-## Boundaries
+```bash
+node scripts/test-business.mjs
+```
 
-Live writes, OAuth completion, live project scaffolding/deployment, payout execution, and bank quote response variants have not been exercised against a real account. No money was moved and no messages were sent in testing. The local app bundle is a development build; this work does not update the downloadable installer or website.
+That covers validation, hidden product creation, product and plan relationships, pagination, persisted actions, free-plan restrictions, membership transitions, the bank-warning guard and retry deduplication. The campaign and media suites pass. Production frontend and native macOS builds pass.
 
-Public bounty submissions are inspectable; this CLI has no submission approval/payout command. New bounties publish and fund immediately; scheduling is not exposed in this form. Product content preview is illustrative, not an exact live storefront rendering. Blank optional text is skipped and cannot clear an existing value. Plan/member pickers and linked-membership inspection use the first 100 records. Local project operations depend on the installed CLI and do not have API idempotency guarantees. Advanced account settings, owner transfer, dispute response submission, and payout-method setup remain outside these forms.
+In the native app on the demo business: created Creator launch kit, added Monthly access at $29 a month, saw the product price refresh, opened Studio with the offer and brief. Paused Kayla Underwood's membership and saw Resume replace Pause. Submitted a $25 demo withdrawal and saw available balance drop. Walked People profiles, Growth briefs and the editor round trip, the Apps gallery, builds and logs, Account, and the Money and Members layouts.
 
-## Money layout refinement
+Not run against a real account: live writes, completing OAuth, scaffolding or deploying a real project, executing a payout, and the different shapes a bank quote can come back in. No money moved, no messages sent.
 
-Restored the earlier dashboard composition at the user's request: prominent total balance and stacked breakdown, income statement alongside it, full-width financial activity, and payouts/disputes side by side. The newer searchable/paginated tables, record details, saved payout methods, and reviewed withdrawal remain. Detail dialogs open only when a record is selected. Balance totals and the breakdown are scoped to a selected currency when multiple currencies are returned.
+## Not yet
 
-## Members layout refinement
-
-Members now uses a full-width table with customer identity, product, plan, status, renewal/access timing, and joined date. A compact snapshot counts active/trialing, past-due, canceling, and paused memberships from the first 100 records, explicitly labeled. Selecting a customer opens a profile dialog with billing/access context and the existing reviewed actions. Paused and canceled memberships no longer display an old date as an upcoming renewal. The directory retains links to a person's loaded memberships, search, sorting, and pagination.
-
-
-### Final page consistency pass
-People uses a full-width customer table with lifetime value, purchase counts, location and last seen, plus focused profile and activity dialogs. Growth places bounty status, submission counts, accepted work and payouts in one table, with a readable full-width brief and funding details. Apps uses project cards, build history, preview deployment reviews and a timestamped runtime log view. Account separates business identity, connection, explicit profile switching and team access; owners are not offered ordinary role changes. Products now uses a full-width offer table and a focused pricing/content dialog. Shared tables retain keyboard-accessible record buttons, filters, refresh and pagination. Long dialogs scroll within the window; mutation review dialogs return to their parent record.
-
-Verification: business, campaign and media/Studio checks passed. Production frontend and native app builds passed; native demo walkthrough covered People profiles, Growth briefs/editor return, Apps gallery/builds/logs, Account and the existing dashboard layouts. Live mutations, invitations, production deployments and payments were not exercised. The public 0.4.1 release is unchanged; these changes are in the local app build.
-
-## Overview UX refinement
-
-Overview keeps the existing dashboard style while prioritizing net revenue and current issues. Membership, new-user and available-balance cards now have direct destinations and local retry actions for failed reads. Period metrics show an explicit UTC range and preserve the selected period for the current business session; the available balance is explicitly current and uses the returned currency rather than a total-balance fallback.
-
-Needs attention derives from current past-due memberships, disputes and product records instead of static recommendations. Record coverage is explicit (up to 100 per list). Review links apply the relevant filters; dispute navigation waits for layout data before scrolling to the dispute section. Latest transactions are ordered by time. Assistant help is a compact briefing action with the chosen period included in the draft prompt.
+Public bounty submissions can be viewed, but the CLI has no command to approve or pay one. New bounties publish and fund immediately. There is no scheduling. The product content preview is a sketch, not the live storefront. Leaving an optional text field blank skips it, so you cannot clear a value that way. Plan and member pickers and linked-membership views use the first 100 records. Local project operations depend on the installed CLI and have no API idempotency. Advanced account settings, owner transfer, dispute responses and payout-method setup are not in these forms.

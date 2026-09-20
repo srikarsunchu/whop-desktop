@@ -1,11 +1,13 @@
-Studio and Ads now connect creative work to campaign management.
+# 0.4.1 preview
 
-- Keep your offer, price, and destination visible while editing artwork and copy.
-- Adjust crop, headline, caption, and CTA with an immediate preview.
-- Carry finished Studio artwork into ads.
-- Manage campaigns, ad groups, and ads: budgets, schedules, targeting, delivery controls, and review before changes.
-- Explore the full workflow in the local fictional demo.
+Studio and Ads talk to each other now.
 
-Apple Silicon, macOS 11 or later. The app is signed with Developer ID, notarized by Apple, and stapled; the DMG is signed. Drag Whop Desktop into Applications.
+- The offer, price and destination stay on screen while you edit artwork and copy.
+- Crop, headline, caption and CTA update the preview as you type.
+- Finished Studio artwork goes straight into an ad.
+- Campaigns, ad groups and ads: budgets, schedules, targeting, delivery. Every change is reviewed before it runs.
+- The whole flow works in the Northwind Picks demo without a real account.
 
-Live campaign actions require your Whop account and may spend funds when activated. Advanced targeting and lead-form configuration are not exposed yet; lists currently show the first 100 results. No live ad writes were used during validation.
+Apple Silicon, macOS 11+. Signed with Developer ID, notarized, stapled. The DMG is signed too. Drag it into Applications.
+
+Live campaign actions spend real money once a campaign is active. Not in this build: advanced targeting, lead forms, and paging past the first 100 rows. I did not run any live ad writes while testing.

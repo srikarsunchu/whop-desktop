@@ -1,58 +1,46 @@
-# Whop Desktop — design audit
+# Design audit
 
-September 10, 2026. Goal: show Whop a considered extension of its own product and developer platform.
+September 10, 2026. The goal is for the app to read as a considered extension of Whop's own product, not a wrapper around a CLI.
 
-## Reference and scope
+## What I compared against
 
-Reviewed the live [Whop website](https://whop.com/), the signed-in business Home and Analytics screens, and the AI side panel. Compared them with the native desktop app and its shared components; reviewed the other view implementations for recurring problems. No real business data was changed. The native visual checks use Northwind Picks.
+The public [whop.com](https://whop.com/) homepage, the signed-in business Home and Analytics screens, and the AI side panel. Then the native app and its shared components, and a read through the other views for repeated problems. No real business data was touched. Visual checks used Northwind Picks.
 
-Whop's public homepage uses orange branding, bold type, illustration, and motion. Its dashboard uses a different balance: restrained dark surfaces, compact controls, blue product actions, grouped navigation, and developer details behind a small control. The desktop should follow the dashboard's interaction language, with native window behavior. Copying the homepage's orange onto every control would miss that distinction.
+The homepage and the dashboard are two different registers. The homepage is orange, bold, illustrated, in motion. The dashboard is quiet dark surfaces, compact controls, blue actions, grouped navigation, and developer details behind a small control. The desktop app belongs to the second register, with native window behavior on top. Painting the homepage orange onto every button would miss that.
 
-## Assessment
+## Where it stood
 
-The app had the right component library and recognizable typography, but the composition made it feel like a collection of command outputs. Frosted UI supplies components; the craft comes from deciding what gets attention, what belongs together, and what happens when someone interacts.
+The right component library and the right typography, but the composition felt like a stack of command outputs. Frosted supplies parts. The craft is in deciding what gets attention, what belongs together, and what happens when you touch something.
 
-The strongest original idea is inspectable work: a business question, a real command, an understandable result. That should be the memorable interaction. It does not require permanently displaying every flag in every panel.
+The one original idea worth protecting is inspectable work: a business question, a real command, a result you can understand. That should be the thing people remember. It does not require every flag to be on screen in every panel all the time.
 
-## Implemented in this pass
+## What changed in this pass
 
-| Bottleneck | Change | Why it matters |
-|---|---|---|
-| Eleven undifferentiated navigation rows | Assistant has a dedicated entry; Business, Grow, and Build groups; Account and connection status at the bottom | Gives the workspace an understandable structure without removing destinations or changing existing numeric shortcuts |
-| Raw syntax dominates each panel | Compact command chip opens a Frosted popover with the full command, updated time, copy confirmation, and terminal action; refresh remains accessible | Keeps the CLI identity discoverable without competing with the business task |
-| Revenue repeated with no focal point | One prominent revenue total and chart, three supporting metrics, and focused prompts into Claude | Establishes a reading order and connects the dashboard to the assistant |
-| Inert chart with a permanent tooltip | Entrance reveal, fading area fill, pointer inspection, keyboard arrows/Home/End, UTC day labels, and a real 7/30/90-day selector | Adds useful movement and inspection rather than decorative animation |
-| Sample counts presented as business totals | Overview uses the aggregate paid-membership series and sums new-user stats | Removes the mismatch between six sample rows and a thousand-plus-member sparkline |
-| Demo data changes when changing the range | Daily fixtures are seeded by date rather than the start of the requested range | The same date has the same value in each time window |
-| Past-due example has a future renewal date | Renewal now falls two days in the past; the recommendation reflects one overdue membership | The demo tells a coherent story |
-| Eight long chat suggestion pills | Three concise task cards that draft a prompt before sending | Gives the user a clear starting point and control over the request |
-| Chat feels like a generic terminal transcript | Identifiable Claude author, compact command cards, explicit output disclosure, clearer running state, better line height | Makes the answer readable while preserving its evidence |
-| Composer can fall below the viewport | Flexible chat layout with a persistent composer and keyboard hints | Works as a native conversation surface instead of a scrolling web page |
-| Stream forces the reader back to the bottom | Follow streaming only while the reader is near the bottom | Allows inspecting previous work during a response |
-| Repeated send during startup | Immediate in-flight guard; clear disabled/stop states | Prevents accidental duplicate questions while the process starts |
-| Studio starts with an unrelated scrubber example | Relevant prompt starters, concise header, explicit demo/paid-generation context, illustrated empty state | Makes the next action understandable and the demo account unambiguous |
-| Exposed account identifiers in navigation | Business title and workspace state in the sidebar; account details stay in Account | Removes noise and makes the app easier to show |
+- **Navigation.** Eleven flat rows became: Assistant on its own, then Business, Grow and Build groups, with Account and connection status at the bottom. Same destinations, same number shortcuts.
+- **Command strip.** The raw command line on every panel became a small chip. Click it for a popover with the full command, when it last ran, copy with confirmation, and open in Terminal. Refresh stays where it was.
+- **Overview.** One big revenue figure and chart, three supporting numbers, and prompts that go into Claude. Before, revenue was shown three times with no focal point.
+- **Chart.** Entrance reveal, fading area fill, hover inspection, arrow keys and Home and End, UTC day labels, and a working 7, 30 and 90 day selector. The old one was static with a tooltip that never went away.
+- **Demo numbers.** Overview now uses the aggregate paid-membership series and sums new-user stats, so six sample rows no longer sit next to a sparkline of a thousand members. Daily fixtures are seeded by calendar date, so the same day has the same value in every range. The past-due example now renews two days ago instead of in the future, and the recommendation matches.
+- **Chat.** Eight long suggestion pills became three short task cards that draft a prompt before sending. Claude is named as the author, commands are compact cards, output is behind a disclosure, the running state is clear, and line height went up. The composer is always visible and the transcript only follows the stream while you are near the bottom, so you can scroll back mid-reply. A send during startup is guarded so you cannot ask twice.
+- **Studio.** The unrelated scrubber example is gone. Starters are relevant, the header is short, demo versus paid is stated, and the empty state is illustrated.
+- **Sidebar.** Business name and workspace state instead of raw account ids. Ids live in Account.
 
-Motion respects Reduce Motion. The data itself is not animated through fabricated intermediate values.
+Motion respects Reduce Motion. Data is never animated through made-up intermediate values.
 
-## Remaining bottlenecks, in priority order
+## What is still in the way, in order
 
-1. **Complete a task inside the app.** Product creation, some member actions, and app setup still lead into raw commands. Build one excellent end-to-end flow: inspect a past-due member, ask Claude for a draft, review the proposed change, and confirm it. A focused member detail drawer would contribute more than another dashboard metric.
-2. **Keep the assistant next to the work.** Whop's AI can sit beside the current page. A contextual assistant drawer would let a campaign or membership remain visible while discussing it. The full conversation view should remain available. This is a larger state-management change, not just a CSS panel.
-3. **Make large lists usable.** Several lists request the first 50 or 100 records with no paging UI. Add cursor pagination, search, meaningful sorting, and a visible loaded-count label before presenting the app as ready for a large business.
-4. **Connect Ads and Studio.** Campaigns, ad groups, and ads currently read as separate tables. A campaign detail view should connect performance, targeting, and creative; generated assets should be selectable without manually copying file IDs.
-5. **Make every action's destination honest.** “New product” should open a creation flow, or explicitly say it opens a command draft. “View” should reveal useful details rather than unexpectedly switch to a terminal. Placeholder command strings are not finished product interactions.
-6. **Strengthen recovery states.** Add retry in place, preserve draft input on failures, distinguish stopped from failed runs, and clarify which operations are running when leaving a view. Audit write permission lifetime and conversation ownership across account changes separately.
-7. **Tighten the fixture universe.** Daily aggregates now agree across periods, but the twelve illustrative member records are still samples rather than a complete backing population. Label samples or generate matching pagination fixtures before making claims about exhaustive lists.
+1. **Finish a task without leaving the app.** Product creation, some member actions and app setup still drop into raw commands. Build one end-to-end flow properly: open a past-due member, ask Claude for a draft, review the change, confirm it. A good member drawer is worth more than another metric.
+2. **Keep the assistant beside the work.** Whop's AI sits next to the current page. A contextual drawer would let a campaign or membership stay visible while you talk about it, with the full conversation view still available. This is a state-management change, not a CSS panel.
+3. **Make long lists usable.** Several lists fetch the first 50 or 100 rows and stop. Cursor pagination, search, real sorting and a visible loaded count are needed before this is ready for a big business.
+4. **Connect Ads and Studio.** Campaigns, groups and ads read as three separate tables. A campaign detail view should tie performance, targeting and creative together, and generated assets should be pickable without copying file ids.
+5. **Make every button honest.** New product should open a creation flow or say it opens a command draft. View should show something useful, not switch to a terminal. Placeholder commands are not finished interactions.
+6. **Recover better.** Retry in place, keep draft input on failure, tell stopped from failed, and say what is still running when you leave a view. Write-permission lifetime and conversation ownership across account switches need their own audit.
+7. **Tighten the fixtures.** Daily aggregates agree now, but the twelve member records are samples, not a population. Label them or generate matching pagination fixtures before claiming complete lists.
 
-## Validation
+## What I tested
 
-- TypeScript and production frontend build pass.
-- Native macOS bundle builds successfully.
-- Native UI checked for Overview, period switching, command inspector, assistant transcript, and assistant empty state. A live read-only demo question completed, returned the corrected past-due date, and its output expanded while the answer and composer remained visible.
-- Fixture checks: overlapping 7/30/90-day ranges agree for revenue, paid memberships, new users, and balance; the past-due record is in the past and retains its $129 renewal price.
-- Review uses the bundled app in `src-tauri/target/release/bundle/macos`; the installed `/Applications` copy is not replaced by this build.
+TypeScript and production build pass. The native bundle builds. Checked Overview, period switching, the command inspector, the chat transcript and the chat empty state in the native app. A read-only demo question ran end to end, returned the corrected past-due date, and its output expanded with the answer and composer still in view. Fixture checks: overlapping 7, 30 and 90 day ranges agree for revenue, paid memberships, new users and balance, and the past-due record is in the past with its $129 renewal intact. This review used the bundle in `src-tauri/target/release/bundle/macos`, not the copy in Applications.
 
-## Demo direction after the product pass
+## How to film it
 
-Show one complete thought: ask a specific business question, watch the command run, read the answer, inspect its evidence. Use the Overview period change to demonstrate the chart interaction. Keep the demo label visible. Film the actual interaction, then cut the waiting time and place the app over a restrained wallpaper. The video should reveal the craft already in the app.
+One complete thought. Ask a specific business question, watch the command run, read the answer, open the evidence. Switch the Overview period to show the chart. Keep the demo label in frame. Record the real interaction, cut the waiting, put the window over a quiet wallpaper. The craft is already in the app. The video just has to show it.

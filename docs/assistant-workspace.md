@@ -1,35 +1,47 @@
-# Assistant-first Whop Desktop
+# Assistant
 
-The assistant is the startup destination and the destination after welcome setup. Explicit launch hints still work. Business pages retain their existing shortcuts and are available alongside conversations.
+The app opens in Assistant, and setup lands there when Claude is connected. Launch hints still override this. The business pages keep their shortcuts and sit alongside the conversations.
 
-Conversations and drafts are saved per business. The previous single-conversation format is migrated without deleting its source. New chat preserves existing messages and nonempty drafts. Recent conversations appear in the main sidebar, and History provides searchable titles. Closing and reopening the app restores the selected chat and draft; interrupted messages recover as stopped, rather than leaving the composer locked.
+[![Creative workflow](media/creative-workflow.jpg)](media/creative-workflow.mp4)
 
-The assistant remains mounted while navigating business pages, so streams and message state continue. Switching businesses stops the old business's run. One reply may run at a time; conversation switching is disabled until it completes or is stopped. Drafting the next message during a reply is supported, but it is not automatically sent.
+*27 seconds. Ask for an ad in chat, review the brief, finish it in Studio, save the draft.*
 
-The composer shows the selected business and offers Claude Sonnet/Opus. Access defaults to reads; allowing changes is an explicit setting that resets for a new or switched conversation. Existing native write controls and chat confirmation instructions remain. Raw commands are a secondary Settings action. Tool steps show readable activity, expandable commands/results, and links to relevant business pages. Replies support tables, copy, error recovery and optional technical metadata.
+## Conversations
 
-Claude installation and authentication are checked separately. Signed-out users can compose and save a draft, then use Connect Claude or Check connection. The native sign-in action invokes the installed CLI's browser login and has a five-minute timeout. Its completion has not been exercised on this signed-out Mac.
+Conversations and drafts are saved per business. The old single-conversation store is migrated in place and left where it was. New chat keeps the current messages and any draft you typed. Recent conversations are in the sidebar, and History has searchable titles. Quit and reopen and you get the same chat and draft back. A message interrupted by a quit comes back as stopped, not as a locked composer.
 
-Validation: production frontend/native builds; assistant checks for migration, multiple chats, business isolation, drafts, interrupted runs, partial stream parsing and model metadata; native UI walkthrough for startup, new chat, history, drafting and page navigation during a run. A read-only demo request reached the installed Claude process but could not complete because Claude is signed out. No successful authenticated response or live Whop mutation is claimed. Public version and installer remain unchanged.
+The Assistant stays mounted while you visit business pages, so a running reply keeps streaming. Switching business stops the old run. One reply at a time. You cannot switch conversations until it finishes or you stop it, but you can type the next message while you wait. It does not send by itself.
 
+## The composer
 
-## Authenticated verification
-After the user completed Claude sign-in, the native app successfully fetched the current demo products through the Whop tool and rendered a five-row price/membership table. A follow-up correctly recalled Free Picks Room with 4,120 members. Open Products navigated to the matching directory, returning to Assistant preserved both replies, and starting a new chat then selecting the saved conversation restored the complete exchange. Assistant regression checks passed. These were read-only demo requests; live business mutations were not exercised.
+It shows the selected business and lets you pick Sonnet or Opus. Access defaults to read-only. Allowing writes is a setting that resets on a new or switched conversation, on top of the native write controls and the confirmation instructions in Claude's prompt. Raw commands are tucked into Settings.
 
-## Creative workflow in chat
+Tool steps read as activity, with the command and its result a click away, and links into the relevant business page. Replies render tables, can be copied, recover from errors, and can show model, turns, time and cost.
 
-Use **Create image**, or send an image/ad creation request. Review the product, current default-plan price, format, brief, headline, caption and destination before submitting one image. Product names in the request select a matching loaded product; the review always permits correction. The CLI does not expose an upfront quote: live review explicitly discloses that the price is unavailable and confirmation authorizes a paid generation. Returned cost is shown on the card. Demo mode produces clearly labeled free sample artwork, not prompt-conditioned output.
+## Connecting Claude
 
-Images share Studio's persistent job store, with conversation and business IDs, original instruction, parent image and request key. Jobs continue across navigation and server jobs resume polling after launch. Requests interrupted before receiving a server ID require an explicit retry with the same idempotency key. Revisions use the selected image's file ID as a reference; no prior version is overwritten. Switch to chat exits revision mode.
+Installation and login are checked separately. Signed out, you can still write and save a draft, then hit Connect Claude or Check connection. Connect runs the CLI's browser login and gives up after five minutes.
 
-Each card supports Revise this, Edit in Studio, Download, and Create ad draft. Exports use the same crop/typography renderer as Studio. Ad drafts require an HTTPS destination and headline and are reviewed before a local IndexedDB save; no campaign is launched. Native assistant tool execution cannot bypass the creative review through `media generate`.
+## Images in chat
 
-Validation: `node scripts/test-chat-creatives.mjs` covers routing, offer context, reference IDs, prompt length, business/conversation scoping, retry keys and concurrent submission deduplication. Existing assistant, media and business suites also pass. Live paid generation is not exercised by automated checks.
+Hit **Create image**, or just ask for an image or an ad. Before anything is generated you see the product, its default-plan price, the format, brief, headline, caption and destination, and you can change any of them. Naming a product in your request selects it. The CLI cannot quote a price up front, so a live review says the price is unknown and your confirmation is what authorizes the charge. The card shows the actual cost afterwards. In demo mode you get a labeled free sample that ignores the prompt.
 
-Native demo verification: entered “Make an Instagram ad for VIP Picks…”, confirmed automatic product/price selection, generated a sample, submitted “Make it darker and shorten the headline” as a linked revision, reviewed and saved the second version into Ads, opened that exact version in Studio, and restarted the app. Both versions, revision selection, product context and ad-draft association restored. No paid generation or campaign launch was performed.
+Chat images share Studio's job store, tagged with the conversation, business, the original instruction, the parent image and the request key. Jobs keep going while you navigate and resume polling after a relaunch. A request that died before getting a server id needs an explicit retry, which reuses the same idempotency key. A revision uses the selected image's file id as a reference and never overwrites the earlier version. Switch to chat leaves revision mode.
 
-### Imported artwork
+Each image card has Revise this, Edit in Studio, Download and Create ad draft. Exports use Studio's crop and typography renderer. An ad draft needs an HTTPS destination and a headline, is reviewed, then saved to IndexedDB. No campaign is launched. Claude's own tool access cannot reach `media generate` and skip this review.
 
-The composer also accepts PNG/JPEG/WebP files up to 3 MB through **Import artwork**. Files stay in local conversation storage, carry the current product context, and can be opened in Studio, downloaded or saved as a local ad draft. Imported assets are distinguished from Whop generations. Live Whop revisions need a remote reference file ID, so they remain disabled for local-only imports. Importing does not upload a file or charge a Whop balance.
+**Import artwork** accepts PNG, JPEG or WebP up to 3 MB. Imports stay in local conversation storage, carry the current product, and can go to Studio, to a download, or to an ad draft. They are marked apart from generated images. Live revisions need a remote file id, so they are disabled for imports. Importing uploads nothing and charges nothing.
 
-The first live generation attempt for Frame Creator required a Whop deposit; it did not produce a completed image. Real alternative artwork was generated with the conversation image tool and saved at `output/creatives/frame-launch-v1.png` for import testing.
+## What I tested
+
+```bash
+node scripts/test-chat-creatives.mjs
+```
+
+That covers routing, offer context, reference ids, prompt length, business and conversation scoping, retry keys and deduplicating concurrent submits. The assistant suite covers migration, multiple chats, business isolation, drafts, interrupted runs, partial stream parsing and model metadata. Media and business suites pass. Production frontend and native builds pass.
+
+In the native app, signed in: asked for the demo products and got a five-row price and membership table. A follow-up recalled Free Picks Room with 4,120 members. Open Products went to the right page, coming back kept both replies, and a new chat followed by reopening the saved one restored everything.
+
+Creative, on the demo business: typed "Make an Instagram ad for VIP Picks…", saw the product and price picked automatically, generated a sample, sent "Make it darker and shorten the headline" as a linked revision, reviewed and saved the second version into Ads, opened that exact version in Studio, restarted the app. Both versions, the selected revision, the product context and the ad draft link all came back.
+
+None of this ran a paid generation, launched a campaign or changed live business data. The first live generation I tried, for Frame Creator, asked for a Whop deposit and never completed. The artwork used for import testing was made elsewhere and lives at `output/creatives/frame-launch-v1.png`.

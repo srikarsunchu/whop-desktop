@@ -1,8 +1,6 @@
 # Whop Desktop landing page
 
-Live at https://srikar-desktop.whop.site/.
-
-The landing page and demo are hosted on Whop using TanStack Start. The Mac download links to the signed, notarized 0.4.2 preview on GitHub Releases.
+Live at https://srikar-desktop.whop.site/. TanStack Start, hosted on Whop. The download button points at the signed 0.4.2 preview on GitHub Releases.
 
 ## Develop
 
@@ -17,4 +15,4 @@ bun run dev
 whop apps deploy
 ```
 
-Sign in to the Whop account that owns the app first. Deployment builds, typechecks, uploads, and promotes the site. The app connection is in whop.app.json. GitHub pushes do not deploy automatically.
+Log in as the Whop account that owns the app first. The command builds, typechecks, uploads and promotes in one go. The app id lives in `whop.app.json`. Pushing to GitHub does not deploy anything.

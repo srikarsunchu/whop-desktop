@@ -233,7 +233,7 @@ export function buildDemoFixtures(): Record<string, unknown> {
     ["payouts list"],
     ["people list"],
     ["apps list"],
-    ["recommended-actions list"],
+    ["economic-intelligence list"],
     ["disputes list"],
     ["accounts get"],
     ["auth status"],

@@ -48,7 +48,7 @@ export function businessDemo(
       "ads",
       "audiences",
       "social-accounts",
-      "recommended-actions",
+      "economic-intelligence",
       "accounts",
     ].includes(group)
   )

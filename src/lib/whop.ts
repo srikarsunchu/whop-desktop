@@ -309,9 +309,16 @@ export interface AppRecord {
   updated_at?: string;
 }
 
-export interface RecommendedAction {
+/** One row of `whop economic-intelligence list`, the CLI 0.18 replacement for `recommended-actions`. */
+export interface EconomicIntelligenceAction {
   id: string;
-  title: string;
-  description?: string | null;
-  category?: string;
+  title: string | null;
+  status: "queued" | "pending" | "ready" | "executed" | "superseded";
+  action_type?: string | null;
+  sentiment?: "positive" | "negative" | null;
+  reasoning?: string | null;
+  target_url?: string | null;
+  created_at?: string | null;
+  executed_at?: string | null;
+  superseded_at?: string | null;
 }

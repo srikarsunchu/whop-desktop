@@ -22,7 +22,7 @@ const COMMON: { label: string; command: string }[] = [
   { label: "List webhooks", command: "whop webhooks list" },
   { label: "Auth status", command: "whop auth status" },
   { label: "Switch business", command: "whop auth account" },
-  { label: "Recommended actions", command: "whop recommended-actions list" },
+  { label: "Economic intelligence", command: "whop economic-intelligence list" },
   { label: "Create export", command: "whop exports create" },
   { label: "Ad campaigns", command: "whop ad-campaigns list" },
   { label: "Generate an image", command: 'whop media generate --type image --prompt "" --wait true' },

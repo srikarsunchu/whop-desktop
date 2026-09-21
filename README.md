@@ -39,7 +39,7 @@ Every screen is a `whop …` command with a face.
 
 | View | Commands behind it |
 |---|---|
-| **Overview** | `stats get net_revenue --interval day` (30d + prior 30d delta), `memberships list --status active`, `members list`, `ledgers report --report_type balance_summary`, `ledgers list`, `recommended-actions list` |
+| **Overview** | `stats get net_revenue --interval day` (30d + prior 30d delta), `memberships list --status active`, `members list`, `ledgers report --report_type balance_summary`, `ledgers list` |
 | **Money** | balance summary with a stacked bar (available / pending / reserve / dispute hold), `ledgers report --report_type income_statement`, ledger activity, `payouts list`, `disputes list` |
 | **Members** | `memberships list` with status filters and row actions (pause, resume, cancel, all confirmed first), `members list` |
 | **Products** | `products list` with default plan price, member count, visibility; publish / unpublish / delete, open store page, list plans |

@@ -205,10 +205,11 @@ const apps = [
   { id: "app_NwLineTracker", name: "Line Tracker", status: "preview", app_type: "b2c_app", domain: "line-tracker.whop.app", created_at: iso(12 * DAY), updated_at: iso(0.3 * DAY) },
 ];
 
+// Shape of `whop economic-intelligence list` (API 2026-09-15). It replaced `recommended-actions` in CLI 0.18.
 const actions = [
-  { id: "rac_NwWinback", title: "Follow up on a failed renewal", description: "One membership is past due. Review it before reaching out.", category: "retention" },
-  { id: "rac_NwPublish", title: "Publish Model Sheet Access", description: "It has 58 members but is hidden from your storefront.", category: "growth" },
-  { id: "rac_NwPayout", title: "Schedule weekly payouts", description: "$18,420.55 is available. Turn on automatic payouts every Friday.", category: "money" },
+  { id: "ecin_NwWinback", title: "Follow up on a failed renewal", status: "ready", action_type: "retention", sentiment: "negative", reasoning: "One membership is past due. Review it before reaching out.", target_url: null, created_at: iso(1 * DAY), executed_at: null, superseded_at: null },
+  { id: "ecin_NwPublish", title: "Publish Model Sheet Access", status: "ready", action_type: "growth", sentiment: "positive", reasoning: "It has 58 members but is hidden from your storefront.", target_url: null, created_at: iso(2 * DAY), executed_at: null, superseded_at: null },
+  { id: "ecin_NwPayout", title: "Schedule weekly payouts", status: "ready", action_type: "money", sentiment: "positive", reasoning: "$18,420.55 is available. Turn on automatic payouts every Friday.", target_url: null, created_at: iso(3 * DAY), executed_at: null, superseded_at: null },
 ];
 
 export const DEMO_POSTER =
@@ -290,7 +291,7 @@ function demoSeed(args: string[]): any {
       return withPage(people());
     case "apps list":
       return withPage(apps);
-    case "recommended-actions list":
+    case "economic-intelligence list":
       return withPage(actions);
     case "ad-campaigns list": {
       const st = flag(args, "--status");

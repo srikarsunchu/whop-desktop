@@ -524,6 +524,35 @@ fn whop_binary() -> Option<PathBuf> {
     candidates.into_iter().find(|p| p.is_file())
 }
 
+/// Locates `wv`, the gated face of the CLI (github.com/srikarsunchu/whop-view). Optional: without it the
+/// assistant falls back to the write block and the panels to their own joins.
+fn wv_binary() -> Option<PathBuf> {
+    if let Some(p) = std::env::var_os("WV_BIN") {
+        let p = PathBuf::from(p);
+        if p.is_file() {
+            return Some(p);
+        }
+    }
+    let home = std::env::var("HOME").unwrap_or_default();
+    let mut candidates: Vec<PathBuf> = vec![
+        PathBuf::from(&home).join(".local/bin/wv"),
+        PathBuf::from(&home).join("Library/pnpm/wv"),
+        PathBuf::from("/opt/homebrew/bin/wv"),
+        PathBuf::from("/usr/local/bin/wv"),
+        PathBuf::from(&home).join(".npm-global/bin/wv"),
+    ];
+    if let Some(path) = std::env::var_os("PATH") {
+        for dir in std::env::split_paths(&path) {
+            candidates.push(dir.join("wv"));
+        }
+    }
+    candidates.into_iter().find(|p| p.is_file())
+}
+
+pub fn wv_binary_path_pub() -> Option<String> {
+    wv_binary().map(|p| p.to_string_lossy().into_owned())
+}
+
 /// Output of a raw CLI run.
 #[derive(Serialize)]
 struct RawOutput {
@@ -564,6 +593,47 @@ fn run_whop(args: &[String]) -> Result<RawOutput, String> {
 async fn whop_raw(args: Vec<String>) -> Result<RawOutput, String> {
     tauri::async_runtime::spawn_blocking(move || run_whop(&args))
         .await.map_err(|e| format!("CLI task failed: {e}"))?
+}
+
+/// Runs `wv <args>` with stdout piped, so wv answers as it does on a pipe: whop's bytes for a read, a plan
+/// envelope (exit 2) for a write, and the write itself when `args` is the `rerun` a plan handed back. A leading
+/// `wv` in `args`, as the rerun carries it, is dropped. The real `whop` is passed in `WV_WHOP_BIN`.
+fn run_wv(args: &[String]) -> Result<RawOutput, String> {
+    let bin = wv_binary().ok_or_else(|| {
+        "wv not found. Install it from github.com/srikarsunchu/whop-view (Node 22.6+), then relaunch.".to_string()
+    })?;
+    let whop = whop_binary().ok_or_else(|| "Whop CLI not found.".to_string())?;
+    let args: &[String] = if args.first().map(String::as_str) == Some("wv") { &args[1..] } else { args };
+    let home = std::env::var("HOME").unwrap_or_default();
+    let extra = format!(
+        "{home}/.local/bin:/opt/homebrew/bin:/usr/local/bin:{}",
+        std::env::var("PATH").unwrap_or_default()
+    );
+    let out = Command::new(&bin)
+        .args(args)
+        .env("PATH", extra)
+        .env("WV_WHOP_BIN", &whop)
+        .env("NO_COLOR", "1")
+        .env("CI", "1")
+        .stdin(std::process::Stdio::null())
+        .output()
+        .map_err(|e| format!("failed to run wv: {e}"))?;
+    Ok(RawOutput {
+        stdout: String::from_utf8_lossy(&out.stdout).into_owned(),
+        stderr: String::from_utf8_lossy(&out.stderr).into_owned(),
+        code: out.status.code().unwrap_or(-1),
+    })
+}
+
+#[tauri::command]
+async fn wv_raw(args: Vec<String>) -> Result<RawOutput, String> {
+    tauri::async_runtime::spawn_blocking(move || run_wv(&args))
+        .await.map_err(|e| format!("CLI task failed: {e}"))?
+}
+
+#[tauri::command]
+fn wv_binary_path() -> Option<String> {
+    wv_binary_path_pub()
 }
 
 /// API-key login. The key travels to the CLI through `WHOP_API_KEY` (never
@@ -1185,6 +1255,8 @@ pub fn run() {
             whop_login_api_key,
             whop_raw,
             whop_binary_path,
+            wv_raw,
+            wv_binary_path,
             launch_hints,
             open_web_window,
             open_external,

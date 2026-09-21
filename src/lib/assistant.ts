@@ -13,6 +13,62 @@ export interface ToolCall {
   done: boolean;
   startedAt: number;
   endedAt?: number;
+  /** wv's gate: the plan a write came back with, or the refusal. Absent on a read. */
+  gate?: Gate;
+  /** What happened after the person answered the plan. */
+  gateResult?: { approved: boolean; output?: string; code?: number };
+}
+
+/**
+ * The gate as wv's pipe face reports it: `CONFIRMATION_REQUIRED` carries a plan and a `rerun` the app runs on
+ * Approve; a refusal (`WHOP_LIMIT`, `WV_CAP`, `INSUFFICIENT_BALANCE`, `WV_AD_CAP`, `*_BLOCKED`) carries the plan
+ * and no rerun. `APPROVAL_EXPIRED` and `APPROVAL_INVALID` mean a rerun went stale or was edited.
+ */
+export interface Gate {
+  kind: "plan" | "refused" | "stale";
+  code: string;
+  message: string;
+  hint?: string;
+  plan?: Record<string, unknown>;
+  rerun?: string[];
+}
+
+const REFUSALS = /^(WHOP_LIMIT|WV_CAP|INSUFFICIENT_BALANCE|WV_AD_CAP|[A-Z_]+_BLOCKED)$/;
+
+/** Reads wv's envelope out of a tool result. Anything that is not the gate returns undefined. */
+export function parseGate(output: string | undefined): Gate | undefined {
+  if (!output) return undefined;
+  const text = output.trim();
+  if (!text.startsWith("{")) return undefined;
+  let env: any;
+  try {
+    env = JSON.parse(text);
+  } catch {
+    return undefined;
+  }
+  const code = env?.error?.code;
+  if (typeof code !== "string" || env.ok !== false) return undefined;
+  const plan = env.plan && typeof env.plan === "object" ? (env.plan as Record<string, unknown>) : undefined;
+  const rerun = Array.isArray(env.rerun) ? env.rerun.map(String) : undefined;
+  const message = String(env.error.message ?? "");
+  const hint = typeof env.error.hint === "string" ? env.error.hint : undefined;
+  if (code === "CONFIRMATION_REQUIRED" && rerun) return { kind: "plan", code, message, hint, plan, rerun };
+  if (code === "APPROVAL_EXPIRED" || code === "APPROVAL_INVALID") return { kind: "stale", code, message, hint, plan };
+  if (REFUSALS.test(code)) return { kind: "refused", code, message, hint, plan };
+  return undefined;
+}
+
+/** Runs a plan's rerun through wv. The leading `wv` in the rerun is fine; the Rust side drops it. */
+export async function runRerun(rerun: string[]): Promise<{ stdout: string; stderr: string; code: number }> {
+  return invoke("wv_raw", { args: rerun });
+}
+
+export async function wvAvailable(): Promise<string | null> {
+  try {
+    return await invoke<string | null>("wv_binary_path");
+  } catch {
+    return null;
+  }
 }
 
 export type Block =
@@ -46,6 +102,8 @@ export interface StartOpts {
   demo: boolean;
   allowWrites: boolean;
   model?: string;
+  /** wv is installed: writes come back as plans the person approves in the app. */
+  gated?: boolean;
 }
 
 export interface RunHandle {
@@ -346,6 +404,7 @@ export async function startRun(
         demo: opts.demo,
         allow_writes: opts.allowWrites,
         model: opts.model ?? null,
+        gated: !!opts.gated,
       },
     });
   } catch (e) {

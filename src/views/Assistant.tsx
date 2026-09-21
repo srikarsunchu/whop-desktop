@@ -40,6 +40,9 @@ import { PageHeader } from "../components/Panel";
 import {
   claudeAvailable,
   startRun,
+  parseGate,
+  runRerun,
+  wvAvailable,
   syncDemoFixtures,
   SUGGESTIONS,
   type ChatMessage,
@@ -48,6 +51,7 @@ import {
   type ToolCall,
 } from "../lib/assistant";
 import { useAccount } from "../lib/whop";
+import { PlanCard } from "../components/PlanCard";
 import { Terminal } from "./Terminal";
 
 const uid = () =>
@@ -114,6 +118,11 @@ export function Assistant({
     [activeId],
   );
   const [allowWrites, setAllowWrites] = useState(false);
+  // wv installed: the shim gates writes with a plan and the Allow-changes switch is not needed.
+  const [wvPath, setWvPath] = useState<string | null>(null);
+  useEffect(() => {
+    wvAvailable().then((p) => setWvPath(p));
+  }, []);
   const [settings, setSettings] = useState(false);
   const [history, setHistory] = useState(false);
   const [historySearch, setHistorySearch] = useState("");
@@ -211,6 +220,24 @@ export function Assistant({
     [setConv],
   );
 
+  /** The person answered a plan card: keep the result on the call, and tell Claude so it closes the loop. */
+  const answerGate = useCallback(
+    (messageId: string, callId: string, approved: boolean, output?: string, code?: number) => {
+      update(messageId, (m) => ({
+        ...m,
+        blocks: m.blocks.map((b) =>
+          b.type === "tool" && b.call.id === callId ? { type: "tool", call: { ...b.call, gateResult: { approved, output, code } } } : b,
+        ),
+      }));
+      const summary = approved
+        ? `I approved the plan in the app and it ran. Result: ${(output ?? "").slice(0, 4000)}`
+        : "I declined the plan in the app; nothing ran. Do not retry it.";
+      void sendRef.current?.(summary);
+    },
+    [update],
+  );
+  const sendRef = useRef<((text: string) => Promise<void>) | null>(null);
+
   const send = useCallback(
     async (text: string) => {
       const prompt = text.trim();
@@ -289,6 +316,7 @@ export function Assistant({
             demo: !!account?.demo,
             allowWrites,
             model,
+            gated: !!wvPath && !account?.demo,
           },
           {
             onSession: (sid) => {
@@ -345,6 +373,7 @@ export function Assistant({
                 isError,
                 done: true,
                 endedAt: Date.now(),
+                gate: parseGate(output),
               })),
             onAssistantMessage: () => {},
             onResult: (meta) =>
@@ -433,6 +462,7 @@ export function Assistant({
       setInput,
     ],
   );
+  sendRef.current = send;
 
   const stop = async () => {
     stoppedRef.current = true;
@@ -572,16 +602,22 @@ export function Assistant({
               confirmation in chat.
             </p>
           </div>
-          <label className="switch-row">
-            <Switch
-              size="1"
-              aria-label="Allow changes"
-              disabled={busy}
-              checked={allowWrites}
-              onCheckedChange={setAllowWrites}
-            />
-            <Text size="1">Allow changes</Text>
-          </label>
+          {wvPath ? (
+            <Text size="1" color="gray">
+              Changes are gated by wv: every write shows its plan here and runs only when you approve it.
+            </Text>
+          ) : (
+            <label className="switch-row">
+              <Switch
+                size="1"
+                aria-label="Allow changes"
+                disabled={busy}
+                checked={allowWrites}
+                onCheckedChange={setAllowWrites}
+              />
+              <Text size="1">Allow changes</Text>
+            </label>
+          )}
           <Button
             size="1"
             variant="soft"
@@ -681,6 +717,7 @@ export function Assistant({
                   key={m.id}
                   m={m}
                   onNavigate={onNavigate}
+                  onGate={answerGate}
                   onRetry={
                     !busy && m.error
                       ? () => {
@@ -883,10 +920,13 @@ function Message({
   m,
   onNavigate,
   onRetry,
+  onGate,
 }: {
   m: ChatMessage;
   onNavigate: (view: ViewId) => void;
   onRetry?: () => void;
+  /** The person answered a plan card on one of this message's tool calls. */
+  onGate?: (messageId: string, callId: string, approved: boolean, output?: string, code?: number) => void;
 }) {
   if (m.role === "user") {
     return (
@@ -930,7 +970,7 @@ function Message({
           b.type === "text" ? (
             <Markdown key={i} text={b.text} />
           ) : (
-            <ToolCard key={b.call.id} call={b.call} onNavigate={onNavigate} />
+            <ToolCard key={b.call.id} call={b.call} onNavigate={onNavigate} onGate={(approved, output, code) => onGate?.(m.id, b.call.id, approved, output, code)} />
           ),
         )}
         {m.error && (
@@ -999,9 +1039,11 @@ function Message({
 function ToolCard({
   call,
   onNavigate,
+  onGate,
 }: {
   call: ToolCall;
   onNavigate: (view: ViewId) => void;
+  onGate?: (approved: boolean, output?: string, code?: number) => void;
 }) {
   const [open, setOpen] = useState(false);
   const destination = toolDestination(call.command);
@@ -1081,6 +1123,17 @@ function ToolCard({
           <CopyIcon />
         </IconButton>
       </div>
+      {call.gate && (
+        <PlanCard
+          gate={call.gate}
+          result={call.gateResult}
+          onApprove={async () => {
+            const r = await runRerun(call.gate!.rerun ?? []);
+            onGate?.(true, r.stdout || r.stderr, r.code);
+          }}
+          onDecline={() => onGate?.(false)}
+        />
+      )}
       {open && (
         <div className="tool-inspection">
           <code>{call.command || "Preparing command…"}</code>
@@ -1094,7 +1147,15 @@ function ToolCard({
       {call.done && (
         <div className="tool-result-footer">
           <span>
-            {blocked
+            {call.gate?.kind === "plan"
+              ? call.gateResult
+                ? call.gateResult.approved
+                  ? "Approved and ran"
+                  : "Declined, nothing ran"
+                : "Waiting for your approval"
+              : call.gate?.kind === "refused"
+                ? "Refused before anything ran"
+                : blocked
               ? "Changes are off"
               : call.isError
                 ? "Could not complete this step"

@@ -49,7 +49,7 @@ Every screen is a `whop …` command with a face.
 | **Apps** | `apps list`, open the hosted domain, builds and logs, deploy preview, and **blueprints**: clone any whop.com/blueprints app with `apps init --template app_…` |
 | **Curfew** | Native fraud dashboard: payment activity, six detection signals, risk details, incident queue, launch mode, protection settings, and interactive demo scenarios |
 | **Growth** | bounties (`bounties list`: pool, paid out, submissions; cancel), referred businesses and the partner leaderboard (`partners *`) |
-| **Assistant** | a Claude chat that operates the business through the CLI: every command it runs shows as a card with its output; writes stay blocked until you allow them. **Raw CLI** mode is one toggle away: history (↑), ⌘L clear, JSON highlighting, copy and re-run |
+| **Assistant** | a Claude chat that operates the business through the CLI: every command it runs shows as a card with its output; a write comes back as a plan you approve on the card (through [wv](https://github.com/srikarsunchu/whop-view)), or stays blocked until you allow it when wv is not installed. **Raw CLI** mode is one toggle away: history (↑), ⌘L clear, JSON highlighting, copy and re-run |
 | **Account** | `auth status`, `auth list` (switch profiles), `accounts get`, `team-members list`, CLI binary and version |
 
 ### The assistant
@@ -58,7 +58,7 @@ Every screen is a `whop …` command with a face.
 
 The `whop` that Claude sees is not the real binary. It is Whop Desktop itself running as a shim that:
 
-- **blocks every write** (create, update, delete, cancel, payouts, deploy, …) unless the "Allow writes" switch is on, returning a `WRITE_BLOCKED` result Claude relays to you;
+- **gates every write** through [wv](https://github.com/srikarsunchu/whop-view) when it is installed: the write comes back as a plan with a signed rerun, the chat shows it as a card with Approve and Decline, and money asks for the amount typed back; without wv it **blocks every write** (create, update, delete, cancel, payouts, deploy, …) unless the "Allow writes" switch is on, returning a `WRITE_BLOCKED` result Claude relays to you;
 - **serves the demo business** from fixtures the app writes, so the demo works end to end without touching a real account;
 - passes reads straight through to the real CLI.
 
@@ -110,6 +110,14 @@ whop quickstart   # pick the business the CLI should use
 
 The app looks for `whop` in `$WHOP_BIN`, `PATH`, `~/.local/bin`,
 `/opt/homebrew/bin` and `/usr/local/bin`.
+
+- **wv** (optional, recommended): the gated face of the CLI. Writes in the assistant become plans you approve. Needs Node 22.6+.
+
+```bash
+git clone https://github.com/srikarsunchu/whop-view && cd whop-view && pnpm install && pnpm build && pnpm link --global
+```
+
+The app looks for `wv` in `$WV_BIN`, `PATH`, `~/.local/bin`, `~/Library/pnpm`, `/opt/homebrew/bin` and `/usr/local/bin`.
 
 ## Download and first launch
 

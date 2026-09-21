@@ -2,8 +2,11 @@
 //! (`claude -p … --output-format stream-json`) and streams its events to the
 //! frontend. Claude is only allowed one tool: `Bash(whop:*)`, and `whop` on its
 //! PATH resolves to THIS binary running as a shim (see [`shim_main`]) which
-//! blocks write commands unless the user enabled them, and serves the demo
-//! dataset when the demo business is selected.
+//! serves the demo dataset when the demo business is selected and otherwise
+//! hands the command to `wv` (github.com/srikarsunchu/whop-view): reads pass
+//! through as whop's own bytes, and a write comes back as a plan with a signed
+//! rerun that the person approves in the app. Without `wv` installed the shim
+//! falls back to blocking writes unless the user enabled them.
 
 use std::collections::HashMap;
 use std::fs;
@@ -20,6 +23,8 @@ pub const SHIM_ENV: &str = "WHOP_DESKTOP_SHIM";
 const REAL_WHOP_ENV: &str = "WHOP_DESKTOP_REAL_WHOP";
 const ALLOW_WRITES_ENV: &str = "WHOP_DESKTOP_ALLOW_WRITES";
 const DEMO_FILE_ENV: &str = "WHOP_DESKTOP_DEMO_FILE";
+/// The `wv` binary the shim hands commands to; set by the app when it found one.
+const WV_ENV: &str = "WHOP_DESKTOP_WV";
 
 /// Sub-commands that change state or move money. Anything else is a read.
 const WRITE_VERBS: &[&str] = &[
@@ -55,6 +60,19 @@ fn shim_run(args: &[String]) -> i32 {
     if let Ok(file) = std::env::var(DEMO_FILE_ENV) {
         return shim_demo(&file, args);
     }
+    // The gate: wv answers a read with whop's bytes and a write with a plan and a rerun (exit 2).
+    if let Ok(wv) = std::env::var(WV_ENV) {
+        let real = std::env::var(REAL_WHOP_ENV).unwrap_or_else(|_| "whop".into());
+        let mut cmd = Command::new(wv);
+        cmd.args(wv_argv(args)).env("WV_WHOP_BIN", real).env_remove(SHIM_ENV).env_remove(WV_ENV).stdin(Stdio::null());
+        return match cmd.status() {
+            Ok(s) => s.code().unwrap_or(1),
+            Err(e) => {
+                eprintln!("whop shim: wv: {e}");
+                127
+            }
+        };
+    }
     if is_write(args) && std::env::var(ALLOW_WRITES_ENV).ok().as_deref() != Some("1") {
         let msg = serde_json::json!({
             "code": "WRITE_BLOCKED",
@@ -77,6 +95,11 @@ fn shim_run(args: &[String]) -> i32 {
             127
         }
     }
+}
+
+/// The argv wv gets: the command as Claude typed it. A leading `wv`, as a rerun carries it, is dropped.
+pub fn wv_argv(args: &[String]) -> &[String] {
+    if args.first().map(String::as_str) == Some("wv") { &args[1..] } else { args }
 }
 
 fn shim_demo(file: &str, args: &[String]) -> i32 {
@@ -145,6 +168,9 @@ pub struct StartArgs {
     pub demo: bool,
     pub allow_writes: bool,
     pub model: Option<String>,
+    /// Set by the app when `wv` is installed: the shim gates writes instead of blocking them.
+    #[serde(default)]
+    pub gated: bool,
 }
 
 #[derive(Serialize, Clone)]
@@ -223,7 +249,9 @@ fn system_prompt(a: &StartArgs) -> String {
     } else {
         ""
     };
-    let writes = if a.allow_writes {
+    let writes = if a.gated {
+        "WRITES ARE GATED: a write (create/update/delete/cancel/payout/deploy/swap) never runs on the first call. It returns exit 2 with `error.code` CONFIRMATION_REQUIRED, a `plan` (what it commits: account, amount, balance, cap, Whop's limit, before → after; for a recipe its steps and blockers), and a `rerun`. The app shows the plan to the user with an Approve button. Your job: say in one or two sentences what the plan will do and stop; do not run the `rerun` yourself, do not add --yes, do not edit the command. A refusal (WHOP_LIMIT, WV_CAP, INSUFFICIENT_BALANCE, WV_AD_CAP, or any *_BLOCKED, with no `rerun`) is final: report it in Whop's words and do not retry. `--plan` on any write shows the plan and runs nothing. Recipes: `wv money close`, `wv money swap --from usd --to eur --amount N`, `wv store price <plan> --to N`, `wv store publish <prod>`, `wv support refund <pay_id>`; type them as `whop …` too, the shim routes them."
+    } else if a.allow_writes {
         "Writes are ENABLED: still explain what a write command will do and get an explicit yes in chat before running create/update/delete/cancel/payout/deploy commands."
     } else {
         "Writes are DISABLED: if a command returns WRITE_BLOCKED, tell the user to turn on \"Allow changes\" in Assistant Settings and confirm, then retry. Never try to work around the block."
@@ -321,6 +349,14 @@ pub fn assistant_start(app: AppHandle, state: State<'_, AssistantState>, args: S
         cmd.env(ALLOW_WRITES_ENV, "1");
     } else {
         cmd.env_remove(ALLOW_WRITES_ENV);
+    }
+    match (args.gated, crate::wv_binary_path_pub()) {
+        (true, Some(wv)) => {
+            cmd.env(WV_ENV, wv);
+        }
+        _ => {
+            cmd.env_remove(WV_ENV);
+        }
     }
     if args.demo {
         cmd.env(DEMO_FILE_ENV, config_dir(&app).join("demo.json"));
@@ -430,4 +466,25 @@ pub async fn claude_login() -> Result<(), String> {
     }).await.map_err(|e| e.to_string()).and_then(|r| r);
     SIGNING_IN.store(false, Ordering::SeqCst);
     result
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn wv_gets_the_command_as_typed_and_drops_a_leading_wv() {
+        let typed: Vec<String> = ["payouts", "create", "--amount", "5", "--format", "json"].iter().map(|s| s.to_string()).collect();
+        assert_eq!(wv_argv(&typed), &typed[..]);
+        let rerun: Vec<String> = ["wv", "payouts", "create", "--amount", "5", "--approve", "t"].iter().map(|s| s.to_string()).collect();
+        assert_eq!(wv_argv(&rerun), &rerun[1..]);
+    }
+
+    #[test]
+    fn writes_are_still_recognised_for_the_fallback_block() {
+        let w: Vec<String> = ["payouts", "create"].iter().map(|s| s.to_string()).collect();
+        let r: Vec<String> = ["payouts", "list"].iter().map(|s| s.to_string()).collect();
+        assert!(is_write(&w));
+        assert!(!is_write(&r));
+    }
 }

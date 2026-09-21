@@ -28,3 +28,27 @@ assert.doesNotThrow(()=>handleLine(JSON.stringify({type:'stream_event',event:{ty
 handleLine(JSON.stringify({type:'assistant',message:{content:[{type:'tool_use',id:'tool',input:{command:'whop products list',description:'Checking products'}}]}}),sink,partial);
 assert.equal(input.at(-1)[1],'whop products list');assert.equal(partial.size,0);
 console.log('Assistant checks passed: legacy migration, multiple conversations, business isolation, draft restoration, interrupted runs, stream parsing and model metadata.');
+
+// wv's gate: a write's tool result parses into a plan with a rerun, a refusal into a refusal, a read into nothing.
+const {parseGate}=await load('src/lib/assistant.ts',true);
+const plan=parseGate(JSON.stringify({ok:false,error:{code:'CONFIRMATION_REQUIRED',message:'whop payouts create --amount 5 writes to production. wv did not run it.',hint:'Show the plan to the person.'},plan:{kind:'write',command:'whop payouts create --amount 5 --payout_method_id potk_x',money:{amount:5,currency:'usd'},balance:{available:18.56,currency:'usd'},cap:500,limit:{speed:'standard',max:0,code:'kyc_completed',message:'Please complete identity verification before requesting a withdrawal.'}},rerun:['wv','payouts','create','--amount','5','--payout_method_id','potk_x','--approve','1790.abc']}));
+assert.equal(plan.kind,'plan');assert.equal(plan.code,'CONFIRMATION_REQUIRED');assert.deepEqual(plan.rerun.slice(0,3),['wv','payouts','create']);assert.equal(plan.plan.money.amount,5);
+const refused=parseGate(JSON.stringify({ok:false,error:{code:'WHOP_LIMIT',message:'Please complete identity verification before requesting a withdrawal.'},plan:{kind:'write',money:{amount:5,currency:'usd'}}}));
+assert.equal(refused.kind,'refused');assert.equal(refused.rerun,undefined);
+const blocked=parseGate(JSON.stringify({ok:false,error:{code:'SWAP_BLOCKED',message:'blocked'},plan:{kind:'swap',blockers:['€80.00 is more than the €12.50 available.']}}));
+assert.equal(blocked.kind,'refused');
+const stale=parseGate(JSON.stringify({ok:false,error:{code:'APPROVAL_EXPIRED',message:'The approval expired.'},plan:{}}));
+assert.equal(stale.kind,'stale');
+assert.equal(parseGate(JSON.stringify({ok:true,data:{data:[]}})),undefined);
+assert.equal(parseGate('Not JSON at all'),undefined);
+assert.equal(parseGate(JSON.stringify({code:'WRITE_BLOCKED',message:'blocked by the app'})),undefined,'the fallback block is not the gate');
+// The typed-back amount and the plan rows.
+const {typedAmountOf,planRows}=await load('src/components/PlanCard.tsx',true).catch(()=>({}));
+if(typedAmountOf){
+ assert.deepEqual(typedAmountOf(plan.plan),{amount:5,currency:'usd'});
+ assert.deepEqual(typedAmountOf({kind:'swap',typedAmount:{amount:80,currency:'eur'}}),{amount:80,currency:'eur'});
+ assert.equal(typedAmountOf({kind:'write',changes:{title:{before:'a',after:'b'}}}),undefined);
+ const rows=Object.fromEntries(planRows(plan.plan));
+ assert.equal(rows.amount,'$5.00');assert.match(rows["Whop's limit"],/^blocked · Please complete/);assert.equal(rows['wv cap'],'$500.00');
+}
+console.log('Gate checks passed: plan, refusal, blocked recipe, stale approval, reads, the fallback block, typed amount, plan rows.');

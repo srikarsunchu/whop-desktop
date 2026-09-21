@@ -14,7 +14,9 @@ The Assistant stays mounted while you visit business pages, so a running reply k
 
 ## The composer
 
-It shows the selected business and lets you pick Sonnet or Opus. Access defaults to read-only. Allowing writes is a setting that resets on a new or switched conversation, on top of the native write controls and the confirmation instructions in Claude's prompt. Raw commands are tucked into Settings.
+It shows the selected business and lets you pick Sonnet or Opus.
+
+**Changes are gated, not switched.** With [wv](https://github.com/srikarsunchu/whop-view) installed, the `whop` Claude runs is handed to `wv`: reads pass through as the CLI's own output, and a write never runs on the first call. It comes back as a plan card in the chat: the command, the amount, the balance, Whop's live limit and wv's cap, before and after for an update, or the steps and blockers of a recipe like `wv money swap`. Approve runs it; a plan that moves money asks for the amount typed back first; Decline leaves nothing run. The approval is a token bound to that exact command for ten minutes, so a stale card refuses itself. A refusal (Whop's limit, wv's cap, an insufficient balance, a blocked recipe) shows the reason in Whop's words and has no button. After you answer, the result goes back to Claude so it can close the loop. Without wv, the older behavior stands: writes are blocked unless "Allow changes" is on, a setting that resets on a new or switched conversation. The demo business is unchanged either way: its writes are simulated. Raw commands are tucked into Settings.
 
 Tool steps read as activity, with the command and its result a click away, and links into the relevant business page. Replies render tables, can be copied, recover from errors, and can show model, turns, time and cost.
 

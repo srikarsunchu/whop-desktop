@@ -625,6 +625,46 @@ fn run_wv(args: &[String]) -> Result<RawOutput, String> {
     })
 }
 
+/// `wv <args>` as JSON: a screen's data, whop's envelope for a read, or the plan envelope for a write (exit 2 with
+/// a JSON body is an answer, not a failure). In demo mode wv's `whop` is this binary in shim mode serving the
+/// demo fixtures, so the Northwind screens come from the same data the panels already use.
+fn run_wv_json(app: &AppHandle, args: Vec<String>, demo: bool) -> Result<serde_json::Value, String> {
+    let bin = wv_binary().ok_or_else(|| "wv not found. Install it from github.com/srikarsunchu/whop-view (Node 22.6+).".to_string())?;
+    let args: Vec<String> = if args.first().map(String::as_str) == Some("wv") { args[1..].to_vec() } else { args };
+    let mut full = args.clone();
+    if !full.iter().any(|a| a == "--format") {
+        full.push("--format".into());
+        full.push("json".into());
+    }
+    let home = std::env::var("HOME").unwrap_or_default();
+    let extra = format!("{home}/.local/bin:/opt/homebrew/bin:/usr/local/bin:{}", std::env::var("PATH").unwrap_or_default());
+    let mut cmd = Command::new(&bin);
+    cmd.args(&full).env("PATH", extra).env("NO_COLOR", "1").env("CI", "1").stdin(std::process::Stdio::null());
+    if demo {
+        let exe = std::env::current_exe().map_err(|e| e.to_string())?;
+        let file = config_dir(app).ok_or("no config dir")?.join("demo.json");
+        cmd.env("WV_WHOP_BIN", exe).env(assistant::SHIM_ENV, "1").env("WHOP_DESKTOP_DEMO_FILE", file);
+    } else {
+        let whop = whop_binary().ok_or_else(|| "Whop CLI not found.".to_string())?;
+        cmd.env("WV_WHOP_BIN", whop);
+    }
+    dlog(&format!("wv json {}", full.iter().take(3).cloned().collect::<Vec<_>>().join(" ")));
+    let out = cmd.output().map_err(|e| format!("failed to run wv: {e}"))?;
+    let text = String::from_utf8_lossy(&out.stdout);
+    let text = text.trim();
+    if let Ok(v) = serde_json::from_str::<serde_json::Value>(text) {
+        return Ok(v);
+    }
+    let err = String::from_utf8_lossy(&out.stderr);
+    Err(if err.trim().is_empty() { text.chars().take(2000).collect() } else { err.trim().chars().take(2000).collect() })
+}
+
+#[tauri::command]
+async fn wv_json(app: AppHandle, args: Vec<String>, demo: bool) -> Result<serde_json::Value, String> {
+    tauri::async_runtime::spawn_blocking(move || run_wv_json(&app, args, demo))
+        .await.map_err(|e| format!("CLI task failed: {e}"))?
+}
+
 #[tauri::command]
 async fn wv_raw(args: Vec<String>) -> Result<RawOutput, String> {
     tauri::async_runtime::spawn_blocking(move || run_wv(&args))
@@ -1256,6 +1296,7 @@ pub fn run() {
             whop_raw,
             whop_binary_path,
             wv_raw,
+            wv_json,
             wv_binary_path,
             launch_hints,
             open_web_window,

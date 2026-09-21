@@ -40,7 +40,7 @@ Every screen is a `whop …` command with a face.
 | View | Commands behind it |
 |---|---|
 | **Overview** | `stats get net_revenue --interval day` (30d + prior 30d delta), `memberships list --status active`, `members list`, `ledgers report --report_type balance_summary`, `ledgers list` |
-| **Money** | balance summary with a stacked bar (available / pending / reserve / dispute hold), `ledgers report --report_type income_statement`, ledger activity, `payouts list`, `disputes list` |
+| **Money** | balance summary with a stacked bar (available / pending / reserve / dispute hold), `ledgers report --report_type income_statement`, ledger activity, `payouts list`, `disputes list`; with wv, a **Payouts** panel from `wv money`: one balance per currency with whether a saved method can deliver it and a Convert button through the gated swap, Whop's live payout limits with the block behind a zero, and the saved methods |
 | **Members** | `memberships list` with status filters and row actions (pause, resume, cancel, all confirmed first), `members list` |
 | **Products** | `products list` with default plan price, member count, visibility; publish / unpublish / delete, open store page, list plans |
 | **People** | `people list`: location, device, events, purchases, LTV, last seen |
@@ -58,7 +58,7 @@ Every screen is a `whop …` command with a face.
 
 The `whop` that Claude sees is not the real binary. It is Whop Desktop itself running as a shim that:
 
-- **gates every write** through [wv](https://github.com/srikarsunchu/whop-view) when it is installed: the write comes back as a plan with a signed rerun, the chat shows it as a card with Approve and Decline, and money asks for the amount typed back; without wv it **blocks every write** (create, update, delete, cancel, payouts, deploy, …) unless the "Allow writes" switch is on, returning a `WRITE_BLOCKED` result Claude relays to you;
+- **gates every write** through [wv](https://github.com/srikarsunchu/whop-view) when it is installed, in the chat and in every action dialog (withdraw, price, publish, cancel): the write comes back as a plan with a signed rerun, the chat shows it as a card with Approve and Decline, and money asks for the amount typed back; without wv it **blocks every write** (create, update, delete, cancel, payouts, deploy, …) unless the "Allow writes" switch is on, returning a `WRITE_BLOCKED` result Claude relays to you;
 - **serves the demo business** from fixtures the app writes, so the demo works end to end without touching a real account;
 - passes reads straight through to the real CLI.
 

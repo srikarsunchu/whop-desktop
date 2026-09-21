@@ -165,3 +165,14 @@ assert.equal(run(payout).id, run(payout).id);
 console.log(
   "Business workflow checks passed: validation, product/plan relationships, scoped pagination, persistent actions, free-plan invites, membership transitions, payout guard, and retry deduplication.",
 );
+
+// wv's gate as the panels see it: data passes, a plan is a gate, a refusal is a gate, a rerun's envelope is read.
+const {gatedResult,rerunOutcome}=await moduleFrom('src/lib/gate.ts');
+assert.equal(gatedResult({data:{data:[]}}).kind,'done');
+const g=gatedResult({ok:false,error:{code:'CONFIRMATION_REQUIRED',message:'m'},plan:{kind:'write'},rerun:['wv','products','update','prod_1','--approve','t']});
+assert.equal(g.kind,'gate');assert.equal(g.gate.kind,'plan');
+assert.equal(gatedResult({ok:false,error:{code:'WV_CAP',message:'over'},plan:{}}).gate.kind,'refused');
+assert.deepEqual(rerunOutcome('{"ok":true,"data":{"id":"prod_1"}}',0),{ok:true,data:{id:'prod_1'}});
+assert.equal(rerunOutcome('{"ok":false,"error":{"code":"APPROVAL_EXPIRED","message":"stale"}}',2).ok,false);
+assert.equal(rerunOutcome('',0).ok,true);
+console.log('Gate checks passed: data, plan, refusal, rerun outcomes.');

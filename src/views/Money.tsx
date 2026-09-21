@@ -16,7 +16,7 @@ import {
   type ActionSpec,
   type RecordData,
 } from "../components/Workspace";
-import { useWhop, type BalanceReport, type Page } from "../lib/whop";
+import { useWhop, useWv, wvPath, type BalanceReport, type Page, type WvMoney } from "../lib/whop";
 import { money, shortDate, relative, titleCase } from "../lib/format";
 import { StatusBadge } from "../components/UserCell";
 import { payoutCommand } from "../lib/business-actions";
@@ -38,6 +38,25 @@ export function Money({
     "100",
   ]);
   const [tab, setTab] = useState("ledgers");
+  // wv money: balances per currency with what can be paid out, Whop's live limits with the block behind a zero,
+  // the saved methods. Shown when wv is installed; the panel is the "know" half of a payout or a swap.
+  const [hasWv, setHasWv] = useState(false);
+  useEffect(() => {
+    wvPath().then((p) => setHasWv(!!p));
+  }, []);
+  const treasury = useWv<WvMoney>(hasWv ? "money" : null);
+  const convert = (from: string, available: number, to: string) =>
+    setAction({
+      key: `money.swap.${from}`,
+      title: `Convert ${from.toUpperCase()} to ${to.toUpperCase()}`,
+      description: `No saved payout method delivers ${from.toUpperCase()}. wv asks Whop for a quote and shows both balances before and after; the swap fills at that rate once you approve it.`,
+      fields: [{ key: "amount", label: `Amount in ${from.toUpperCase()}`, type: "number", min: 0.01, required: true, hint: `${money(available, from)} available` }],
+      initial: { amount: String(available) },
+      build: (v) => {
+        if (Number(v.amount) > available) throw Error("More than the available balance in this currency.");
+        return ["money", "swap", "--from", from, "--to", to, "--amount", v.amount];
+      },
+    });
   const income = useWhop<BalanceReport>([
     "ledgers",
     "report",
@@ -324,6 +343,65 @@ export function Money({
           </QueryBody>
         </Panel>
       </div>
+
+      {hasWv && (
+        <Panel title="Payouts" query={treasury} onRun={runInTerminal}>
+          <QueryBody q={treasury} onRun={runInTerminal}>
+            {(d) => {
+              const target = d.methods.find((m) => m.is_default)?.currency ?? d.methods[0]?.currency ?? "usd";
+              return (
+                <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                  <Table.Root variant="ghost" size="1">
+                    <Table.Table>
+                      <Table.Body>
+                        {d.balances.map((b) => (
+                          <Table.Row key={b.currency}>
+                            <Table.Cell>
+                              <Text size="2">{b.currency.toUpperCase()}</Text>
+                            </Table.Cell>
+                            <Table.Cell justify="end">
+                              <Text size="2" weight="medium" className="num">
+                                {b.error ? b.error : money(b.available ?? 0, b.currency)}
+                              </Text>
+                            </Table.Cell>
+                            <Table.Cell>
+                              {b.error ? null : b.payable ? (
+                                <Text size="1" color="gray">payable</Text>
+                              ) : d.methods.length && (b.available ?? 0) > 0 ? (
+                                <Button size="1" variant="soft" color="amber" onClick={() => convert(b.currency, b.available ?? 0, target)}>
+                                  Convert to {target.toUpperCase()}
+                                </Button>
+                              ) : (
+                                <Text size="1" color="gray">no payout method in this currency</Text>
+                              )}
+                            </Table.Cell>
+                          </Table.Row>
+                        ))}
+                      </Table.Body>
+                    </Table.Table>
+                  </Table.Root>
+                  <div>
+                    {(["standard", "instant"] as const).map((speed) => {
+                      const l = d.limits[speed];
+                      if (!l) return null;
+                      return (
+                        <Text key={speed} size="1" color={l.code ? "red" : "gray"} style={{ display: "block" }}>
+                          {speed}: {l.code ? `blocked · ${l.message ?? l.code}` : `up to ${money(l.max, d.balances[0]?.currency ?? "usd")} per payout${l.dailyRemaining != null ? ` · ${money(l.dailyRemaining, d.balances[0]?.currency ?? "usd")} left today` : ""}`}
+                        </Text>
+                      );
+                    })}
+                    {!d.methods.length && (
+                      <Text size="1" color="amber" style={{ display: "block" }}>
+                        No saved payout method. Add one on Whop, then refresh.
+                      </Text>
+                    )}
+                  </div>
+                </div>
+              );
+            }}
+          </QueryBody>
+        </Panel>
+      )}
 
       <MoneyRecords
         group="ledgers"

@@ -3,6 +3,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { demoResolve, DEMO_ACCOUNT_ID } from "./demo";
+import { syncDemoFixtures } from "./assistant";
 
 export interface RawOutput {
   stdout: string;
@@ -194,6 +195,132 @@ export function useWhop<T = unknown>(
     command: full ? commandString(full) : "",
     updatedAt: state.at,
   };
+}
+
+// ---------------------------------------------------------------------------
+// wv: the gated face of the CLI (github.com/srikarsunchu/whop-view)
+// ---------------------------------------------------------------------------
+
+let wvPathCache: Promise<string | null> | undefined;
+/** Where `wv` is, or null. Cached for the session; `invalidateWv` after an install. */
+export function wvPath(): Promise<string | null> {
+  wvPathCache ??= (isTauri() ? invoke<string | null>("wv_binary_path") : Promise.resolve(null)).catch(() => null);
+  return wvPathCache;
+}
+export function invalidateWv() {
+  wvPathCache = undefined;
+}
+
+export const wvCommandString = (args: string[]) => "wv " + args.map((a) => (/[\s"]/.test(a) ? JSON.stringify(a) : a)).join(" ");
+
+/**
+ * Runs `wv <args>` and returns its JSON: a screen's data, whop's envelope, or the plan envelope for a write. A
+ * plain error envelope with no plan throws `WhopError`. Demo runs wv over the app's own demo fixtures.
+ */
+export async function runWvJson<T = unknown>(args: string[], demo = false): Promise<T> {
+  if (!isTauri()) throw { code: "NOT_TAURI", message: "Not running inside Whop Desktop" } satisfies WhopError;
+  if (demo) await syncDemoFixtures();
+  let out: unknown;
+  try {
+    out = await invoke("wv_json", { args, demo });
+  } catch (e) {
+    throw { code: "CLI", message: String(e) } satisfies WhopError;
+  }
+  if (out && typeof out === "object" && "ok" in out && (out as { ok: unknown }).ok === false && "error" in out && !("plan" in out)) {
+    const err = (out as { error: WhopError }).error;
+    throw { code: String(err.code), message: String(err.message) } satisfies WhopError;
+  }
+  if (out && typeof out === "object" && "code" in out && "message" in out && !("data" in out) && !("ok" in out)) {
+    const err = out as WhopError;
+    throw { code: String(err.code), message: String(err.message) } satisfies WhopError;
+  }
+  return out as T;
+}
+
+/** The argv a wv screen or recipe runs for the selected business: `--account_id` unless it is the demo. */
+export function withWvAccount(args: string[], account: Account | null): string[] {
+  if (!account || account.demo || args.includes("--account_id")) return args;
+  return [...args, "--account_id", account.id];
+}
+
+/** A wv screen as a cached, refreshable query: `useWv("money")`, `useWv("store", ["--from", "DE"])`. */
+export function useWv<T = unknown>(screen: string | null, extra: string[] = [], opts: { ttl?: number; enabled?: boolean } = {}): UseWhopResult<T> {
+  const { account } = useAccount();
+  const demo = !!account?.demo;
+  const full = screen ? withWvAccount([screen, ...extra], account) : null;
+  const key = full ? "wv:" + (demo ? `demo:${DEMO_ACCOUNT_ID}:` : "") + full.join("\u0000") : null;
+  const ttl = opts.ttl ?? 30_000;
+  const enabled = opts.enabled ?? true;
+  const [tick, setTick] = useState(0);
+  const [state, setState] = useState<{ data: T | undefined; error: WhopError | null; loading: boolean; at: number | null }>(() => {
+    const hit = key ? cache.get(key) : undefined;
+    return { data: hit?.data as T | undefined, error: null, loading: !hit && !!key && enabled, at: hit?.at ?? null };
+  });
+  const keyRef = useRef(key);
+  useEffect(() => {
+    keyRef.current = key;
+    if (!key || !full || !enabled) {
+      setState((s) => ({ ...s, loading: false }));
+      return;
+    }
+    const hit = cache.get(key);
+    const fresh = hit && Date.now() - hit.at < ttl && tick === 0;
+    if (hit) setState({ data: hit.data as T, error: null, loading: !fresh, at: hit.at });
+    else setState({ data: undefined, error: null, loading: true, at: null });
+    if (fresh) return;
+    const revision = dataRevision;
+    let p = inflight.get(key);
+    if (!p) {
+      p = runWvJson<T>(full, demo).finally(() => { if (inflight.get(key) === p) inflight.delete(key); });
+      inflight.set(key, p);
+    }
+    let cancelled = false;
+    p.then(
+      (data) => {
+        const at = Date.now();
+        if (revision !== dataRevision) return;
+        cache.set(key, { data, at });
+        if (!cancelled && keyRef.current === key) setState({ data: data as T, error: null, loading: false, at });
+      },
+      (err: WhopError) => {
+        if (!cancelled && keyRef.current === key) setState((s) => ({ ...s, error: err ?? { code: "ERR", message: "Unknown error" }, loading: false }));
+      },
+    );
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key, tick, enabled]);
+  useEffect(() => {
+    const changed = () => setTick((t) => t + 1);
+    window.addEventListener("whop:data-changed", changed);
+    return () => window.removeEventListener("whop:data-changed", changed);
+  }, []);
+  const refresh = useCallback(() => {
+    if (key) cache.delete(key);
+    setTick((t) => t + 1);
+  }, [key]);
+  return { data: state.data, error: state.error, loading: state.loading, refresh, command: full ? wvCommandString([...full, "--format", "json"]) : "", updatedAt: state.at };
+}
+
+/** `wv money --format json`. */
+export interface WvLimit {
+  speed: string;
+  max: number;
+  code?: string;
+  message?: string;
+  dailyRemaining?: number | null;
+}
+export interface WvMoney {
+  ok: boolean;
+  account?: { id?: string; title?: string };
+  mode: string;
+  balances: { currency: string; available?: number; other: { category: string; amount: number }[]; error?: string; payable: boolean }[];
+  unpayable: string[];
+  limits: { standard?: WvLimit; instant?: WvLimit };
+  payoutsBlocked?: { code: string; message?: string };
+  methods: { id: string; nickname?: string; institution?: string; currency?: string; is_default?: boolean; status?: string; reference?: string }[];
+  commands: unknown[];
 }
 
 /** Drops every cached result (after a write action). */

@@ -40,7 +40,6 @@ import { PageHeader } from "../components/Panel";
 import {
   claudeAvailable,
   startRun,
-  parseGate,
   runRerun,
   wvAvailable,
   syncDemoFixtures,
@@ -52,6 +51,7 @@ import {
 } from "../lib/assistant";
 import { useAccount } from "../lib/whop";
 import { PlanCard } from "../components/PlanCard";
+import { parseGate } from "../lib/gate";
 import { Terminal } from "./Terminal";
 
 const uid = () =>

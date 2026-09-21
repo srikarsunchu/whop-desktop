@@ -30,7 +30,7 @@ assert.equal(input.at(-1)[1],'whop products list');assert.equal(partial.size,0);
 console.log('Assistant checks passed: legacy migration, multiple conversations, business isolation, draft restoration, interrupted runs, stream parsing and model metadata.');
 
 // wv's gate: a write's tool result parses into a plan with a rerun, a refusal into a refusal, a read into nothing.
-const {parseGate}=await load('src/lib/assistant.ts',true);
+const {parseGate}=await load('src/lib/gate.ts');
 const plan=parseGate(JSON.stringify({ok:false,error:{code:'CONFIRMATION_REQUIRED',message:'whop payouts create --amount 5 writes to production. wv did not run it.',hint:'Show the plan to the person.'},plan:{kind:'write',command:'whop payouts create --amount 5 --payout_method_id potk_x',money:{amount:5,currency:'usd'},balance:{available:18.56,currency:'usd'},cap:500,limit:{speed:'standard',max:0,code:'kyc_completed',message:'Please complete identity verification before requesting a withdrawal.'}},rerun:['wv','payouts','create','--amount','5','--payout_method_id','potk_x','--approve','1790.abc']}));
 assert.equal(plan.kind,'plan');assert.equal(plan.code,'CONFIRMATION_REQUIRED');assert.deepEqual(plan.rerun.slice(0,3),['wv','payouts','create']);assert.equal(plan.plan.money.amount,5);
 const refused=parseGate(JSON.stringify({ok:false,error:{code:'WHOP_LIMIT',message:'Please complete identity verification before requesting a withdrawal.'},plan:{kind:'write',money:{amount:5,currency:'usd'}}}));

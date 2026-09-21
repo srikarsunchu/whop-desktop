@@ -10,6 +10,10 @@ import {
   type Page,
 } from "../lib/whop";
 import { EmptyPanel, QueryBody } from "./Panel";
+import { PlanCard } from "./PlanCard";
+import { gatedResult, rerunOutcome, type Gate } from "../lib/gate";
+import { runRerun } from "../lib/assistant";
+import { runWvJson, wvPath } from "../lib/whop";
 import { StatusBadge } from "./UserCell";
 
 export type RecordData = { id: string; [key: string]: any };
@@ -366,6 +370,8 @@ export function ActionEditor({
   const [review, setReview] = useState<string[] | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  // wv's gate: the plan the write came back with, waiting for Approve on the card.
+  const [gate, setGate] = useState<Gate | null>(null);
   const lock = useRef(false);
   const mounted = useRef(true);
   useEffect(() => {
@@ -413,10 +419,19 @@ export function ActionEditor({
     setBusy(true);
     setError("");
     try {
-      const result = await (spec.execute ?? runWhopJson)(
-        review,
-        !!account.demo,
-      );
+      // Through wv when it is installed and the spec has no executor of its own: a write comes back as a plan first.
+      const viaWv = !spec.execute && !account.demo && !!(await wvPath());
+      let result: unknown;
+      if (viaWv) {
+        const r = gatedResult(await runWvJson(review, false));
+        if (r.kind === "gate") {
+          setGate(r.gate);
+          return;
+        }
+        result = r.data;
+      } else {
+        result = await (spec.execute ?? runWhopJson)(review, !!account.demo);
+      }
       invalidateAll();
       sessionStorage.removeItem(`workspace.${account.id}.${storageKey}`);
       sessionStorage.removeItem(requestStorage);
@@ -477,6 +492,29 @@ export function ActionEditor({
               />
             )}{" "}
             {spec.review?.(values, !!review)}
+            {gate && (
+              <PlanCard
+                gate={gate}
+                onApprove={async () => {
+                  const out = await runRerun(gate.rerun ?? []);
+                  const r = rerunOutcome(out.stdout, out.code);
+                  if (!r.ok) {
+                    setGate(null);
+                    setError(r.message ?? "The change did not complete.");
+                    return;
+                  }
+                  invalidateAll();
+                  sessionStorage.removeItem(`workspace.${account?.id}.${storageKey}`);
+                  sessionStorage.removeItem(requestStorage);
+                  if (mounted.current) {
+                    toast.success("Change completed");
+                    spec.onSuccess?.(r.data);
+                    onClose();
+                  }
+                }}
+                onDecline={() => setGate(null)}
+              />
+            )}
             {review && (
               <>
                 <p className="workspace-notice">

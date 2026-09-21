@@ -3,7 +3,7 @@
 // button. Pure over the `Gate` shape; the caller runs the rerun.
 import { Badge, Button, Text, TextField } from "frosted-ui";
 import { useState } from "react";
-import type { Gate } from "../lib/assistant";
+import type { Gate } from "../lib/gate";
 
 type Rec = Record<string, unknown>;
 const isObj = (v: unknown): v is Rec => !!v && typeof v === "object" && !Array.isArray(v);

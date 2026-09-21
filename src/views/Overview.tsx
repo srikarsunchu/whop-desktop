@@ -27,6 +27,7 @@ import {
   type Page,
   type StatsSeries,
 } from "../lib/whop";
+import { WvNext } from "../components/WvNext";
 
 export function Overview({
   runInTerminal,
@@ -337,6 +338,7 @@ export function Overview({
           </button>
         </div>
       </div>
+      <WvNext screen="report" title="Next" runInTerminal={runInTerminal} />
       <div className="overview-main">
         <Panel
           title="Net revenue"

@@ -12,12 +12,31 @@ import {
   type ActionSpec,
   type RecordData,
 } from "../components/Workspace";
-import { useAccount, useWhop, invalidateAll } from "../lib/whop";
+import { useAccount, useWhop, useWv, wvPath, invalidateAll, type WvSetup, type WvSetupStep } from "../lib/whop";
+import { useEffect } from "react";
 import { UserCell, StatusBadge } from "../components/UserCell";
 import { buildFields } from "../lib/business-actions";
-export function AccountView({}: { runInTerminal: (c: string) => void }) {
+export function AccountView({ runInTerminal }: { runInTerminal: (c: string) => void }) {
   const { account, cliPath, cliVersion, loggedIn, profile, authMethod, refreshAccounts } =
     useAccount();
+  // The first hour as numbered steps, from `wv setup`: who does each, and the fix runnable through the gate.
+  const [hasWv, setHasWv] = useState(false);
+  useEffect(() => {
+    wvPath().then((x) => setHasWv(!!x));
+  }, []);
+  const setup = useWv<WvSetup>(hasWv && !account?.demo ? "setup" : null);
+  const runStep = (step: WvSetupStep) => {
+    const cmd = step.command ?? [];
+    if (cmd[0] === "wv") {
+      setAction({
+        key: `setup.${step.key}`,
+        title: step.label,
+        description: step.then,
+        fields: [],
+        build: () => cmd.slice(1),
+      });
+    } else if (cmd.length) runInTerminal(cmd.join(" "));
+  };
   const detail = useWhop<RecordData>(
     account ? ["accounts", "get", account.id] : null,
   );
@@ -176,6 +195,46 @@ export function AccountView({}: { runInTerminal: (c: string) => void }) {
           )}
         </Panel>
       </div>
+      {hasWv && !account?.demo && (
+        <Panel title="Setup" query={setup} onRun={runInTerminal}>
+          <QueryBody q={setup} onRun={runInTerminal}>
+            {(d) =>
+              d.steps.length === 0 ? (
+                <p className="workspace-muted">Every check is green: this business is set up to sell, run ads, pay out, and receive webhooks.</p>
+              ) : (
+                <ol className="setup-steps">
+                  {d.steps.map((st) => (
+                    <li key={st.key} data-blocking={st.blocking} data-level={st.level}>
+                      <div className="setup-head">
+                        <strong>
+                          {st.n}. {st.label}
+                        </strong>
+                        {st.blocking && <StatusBadge status="blocks selling" />}
+                        <span className="workspace-muted">{{ cli: "wv runs it, you approve", terminal: "whop in a terminal", browser: "you, in the dashboard", both: "wv starts it, you finish in a browser" }[st.how]}</span>
+                      </div>
+                      <p className="workspace-muted">{st.detail}</p>
+                      <p>{st.then}</p>
+                      <div className="workspace-actions">
+                        {st.command && (
+                          <Button size="1" variant={st.command[0] === "wv" ? "classic" : "soft"} onClick={() => runStep(st)}>
+                            {st.command[0] === "wv" ? "Run with approval" : "Run in terminal"}
+                          </Button>
+                        )}
+                        {st.url && (
+                          <Button size="1" variant="ghost" onClick={() => invoke("open_external", { url: st.url })}>
+                            Open ↗
+                          </Button>
+                        )}
+                      </div>
+                    </li>
+                  ))}
+                </ol>
+              )
+            }
+          </QueryBody>
+        </Panel>
+      )}
+
       <Panel title="Saved profiles">
         <QueryBody q={profiles}>
           {(d) => (

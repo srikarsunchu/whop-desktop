@@ -1,5 +1,5 @@
 import { Button, toast } from "frosted-ui";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { PageHeader, QueryBody } from "../components/Panel";
 import {
@@ -15,9 +15,9 @@ import {
   type ActionSpec,
   type RecordData,
 } from "../components/Workspace";
-import { useAccount, useWhop, runWhopJson, type Page } from "../lib/whop";
+import { useAccount, useWhop, useWv, wvPath, runWhopJson, type Page, type WvStore } from "../lib/whop";
 import { StatusBadge } from "../components/UserCell";
-import { planPrice, shortDate } from "../lib/format";
+import { money, planPrice, shortDate } from "../lib/format";
 import { productCommand, planCommand } from "../lib/business-actions";
 
 export function Products({
@@ -39,6 +39,26 @@ export function Products({
   const plans = useWhop<Page<RecordData>>(
     p ? ["plans", "list", "--product_id", p.id, "--first", "100"] : null,
   );
+  // What a buyer in another country pays, tax included, from `wv store --from CC` (Whop's own tax preview).
+  const [hasWv, setHasWv] = useState(false);
+  useEffect(() => {
+    wvPath().then((x) => setHasWv(!!x));
+  }, []);
+  const [from, setFrom] = useSaved<string>("products.from", "");
+  const localized = useWv<WvStore>(hasWv && from && !account?.demo ? "store" : null, ["--from", from]);
+  const localizedFor = (planId: string) => {
+    const products = localized.data?.products;
+    if (!Array.isArray(products)) return undefined;
+    for (const prod of products) for (const pl of prod.plans) if (pl.id === planId) return pl.localized;
+    return undefined;
+  };
+  const localizedTail = (planId: string) => {
+    const l = localizedFor(planId);
+    if (!l) return "";
+    if (l.error) return ` · from ${l.country}: ${l.error}`;
+    if (l.total === undefined) return "";
+    return ` · from ${l.country}: ${money(l.total, l.currency)}${l.tax ? ` (${money(l.tax, l.currency)} tax)` : " (no tax)"}`;
+  };
   function edit(product?: RecordData) {
     setAction({
       key: `product.${product?.id ?? "new"}`,
@@ -284,7 +304,21 @@ export function Products({
                 <strong>{planPrice(p.default_plan)}</strong>
               </div>
               <div className="workspace-section">
-                <h3>Pricing plans</h3>
+                <h3>
+                  Pricing plans
+                  {hasWv && !account?.demo && (
+                    <select aria-label="Price from a country" value={from} onChange={(e) => setFrom(e.target.value)} style={{ marginLeft: 10, fontSize: 12 }}>
+                      <option value="">local price</option>
+                      {["US", "CA", "GB", "DE", "FR", "ES", "IT", "NL", "BR", "MX", "IN", "AU", "JP"].map((c) => (
+                        <option key={c} value={c}>
+                          from {c}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </h3>
+                {from && localized.loading && <p className="workspace-muted">Asking Whop what these plans cost from {from}…</p>}
+                {from && localized.error && <p className="workspace-muted">Could not price from {from}: {localized.error.message}</p>}
                 <QueryBody q={plans}>
                   {(d) => (
                     <>
@@ -292,7 +326,7 @@ export function Products({
                         <Records
                           rows={d.data}
                           onSelect={editPlan}
-                          secondary={(r) => planPrice(r as any)}
+                          secondary={(r) => planPrice(r as any) + localizedTail(String(r.id))}
                         />
                       ) : (
                         <p className="workspace-muted">

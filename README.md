@@ -39,10 +39,10 @@ Every screen is a `whop …` command with a face.
 
 | View | Commands behind it |
 |---|---|
-| **Overview** | `stats get net_revenue --interval day` (30d + prior 30d delta), `memberships list --status active`, `members list`, `ledgers report --report_type balance_summary`, `ledgers list` |
+| **Overview** | `stats get net_revenue --interval day` (30d + prior 30d delta), `memberships list --status active`, `members list`, `ledgers report --report_type balance_summary`, `ledgers list`; with wv, a **Next** panel from `wv report`: what blocks a sale or a launch, each with its fix runnable through the gate |
 | **Money** | balance summary with a stacked bar (available / pending / reserve / dispute hold), `ledgers report --report_type income_statement`, ledger activity, `payouts list`, `disputes list`; with wv, a **Payouts** panel from `wv money`: one balance per currency with whether a saved method can deliver it and a Convert button through the gated swap, Whop's live payout limits with the block behind a zero, and the saved methods |
 | **Members** | `memberships list` with status filters and row actions (pause, resume, cancel, all confirmed first), `members list` |
-| **Products** | `products list` with default plan price, member count, visibility; publish / unpublish / delete, open store page, list plans |
+| **Products** | `products list` with default plan price, member count, visibility; publish / unpublish / delete, open store page, list plans; with wv, a "from country" select prices every plan tax-included from `wv store --from CC` |
 | **People** | `people list`: location, device, events, purchases, LTV, last seen |
 | **Ads** | Meta campaigns from `ad-campaigns list` with 30-day spend, impressions, clicks, results and cost per result; ad groups, ads, audiences, connected social accounts; pause / unpause / duplicate / delete, retry payment; "Plan a campaign with Claude" |
 | **Studio** | Reference-based image/video generation, editable typography and cropping, named creative history, and a local ad-draft handoff; live generation is billed from your Whop balance |
@@ -50,7 +50,7 @@ Every screen is a `whop …` command with a face.
 | **Curfew** | Native fraud dashboard: payment activity, six detection signals, risk details, incident queue, launch mode, protection settings, and interactive demo scenarios |
 | **Growth** | bounties (`bounties list`: pool, paid out, submissions; cancel), referred businesses and the partner leaderboard (`partners *`) |
 | **Assistant** | a Claude chat that operates the business through the CLI: every command it runs shows as a card with its output; a write comes back as a plan you approve on the card (through [wv](https://github.com/srikarsunchu/whop-view)), or stays blocked until you allow it when wv is not installed. **Raw CLI** mode is one toggle away: history (↑), ⌘L clear, JSON highlighting, copy and re-run |
-| **Account** | `auth status`, `auth list` (switch profiles), `accounts get`, `team-members list`, CLI binary and version |
+| **Account** | `auth status`, `auth list` (switch profiles), `accounts get`, `team-members list`, CLI binary and version; with wv, a **Setup** panel from `wv setup`: the first hour as numbered steps, who does each, and the fix runnable through the gate |
 
 ### The assistant
 

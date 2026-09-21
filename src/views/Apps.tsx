@@ -16,9 +16,10 @@ import {
   type RecordData,
 } from "../components/Workspace";
 import { useAccount, runWhopRaw, runWhopJson, useWhop } from "../lib/whop";
+import { WvNext } from "../components/WvNext";
 import { buildFields } from "../lib/business-actions";
 import { shortDate } from "../lib/format";
-export function Apps({}: {
+export function Apps({ runInTerminal }: {
   runInTerminal: (c: string) => void;
   ask: (p: string) => void;
 }) {
@@ -125,6 +126,7 @@ export function Apps({}: {
           </Button>
         }
       />
+      <WvNext screen="dev" title="Webhooks and errors" runInTerminal={runInTerminal} />
       {result && (
         <details className="workspace-technical">
           <summary>Last operation</summary>

@@ -1430,3 +1430,14 @@ button:focus-visible, .chart:focus-visible { outline: 2px solid var(--accent-8);
 .plan-steps span { font-weight: 500; }
 .plan-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .plan-result { display: grid; gap: 6px; }
+
+/* The setup steps from wv setup, on the Account page. */
+.setup-steps { margin: 0; padding-left: 0; list-style: none; display: grid; gap: 12px; }
+.setup-steps li { padding: 10px 12px; border: 1px solid var(--gray-a4); border-radius: 8px; display: grid; gap: 4px; font-size: 12px; }
+.setup-steps li[data-blocking="true"] { border-color: var(--red-a6); }
+.setup-steps li p { margin: 0; }
+.setup-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+/* Next actions from a wv screen. */
+.next-items { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+.next-items li { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 12px; }

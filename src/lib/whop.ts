@@ -323,6 +323,34 @@ export interface WvMoney {
   commands: unknown[];
 }
 
+/** `wv store [--from CC] --format json`: only the fields the panels read. */
+export interface WvStore {
+  ok: boolean;
+  from?: string;
+  products: { id: string; title?: string; forSale?: { ok: boolean; why?: string }; plans: { id: string; price?: string; localized?: { country: string; currency: string; subtotal?: number; tax?: number; total?: number; error?: string } }[] }[] | { error: string };
+}
+
+/** `wv setup --format json`: the first hour as numbered steps, each saying who does it. */
+export interface WvSetupStep {
+  n: number;
+  key: string;
+  label: string;
+  level: "ok" | "warn" | "fail";
+  blocking: boolean;
+  detail: string;
+  how: "cli" | "terminal" | "browser" | "both";
+  command?: string[];
+  url?: string;
+  then: string;
+}
+export interface WvSetup {
+  ok: boolean;
+  account?: { id?: string; title?: string };
+  green: string[];
+  steps: WvSetupStep[];
+  blocking: number;
+}
+
 /** Drops every cached result (after a write action). */
 export function invalidateAll() {
   dataRevision++;

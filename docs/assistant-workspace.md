@@ -38,7 +38,12 @@ Each image card has Revise this, Edit in Studio, Download and Create ad draft. E
 
 ```bash
 node scripts/test-chat-creatives.mjs
+node scripts/test-assistant.mjs      # the gate: plan, refusal, blocked recipe, stale approval, typed amount, plan rows
+node scripts/test-business.mjs       # the gate in the action editor: data, plan, refusal, rerun outcomes
+cargo test                           # the shim hands wv the command as typed and drops a rerun's leading wv
 ```
+
+The gate, against the app binary in shim mode on 2026-09-21: a $5 payout on the real business came back as wv's `WHOP_LIMIT` refusal with the plan (identity block) and nothing ran; a read passed through as the CLI's bytes; a one-dollar fiat swap came back as the quote-first swap plan with its rerun. `wv money` over the demo shim returned Northwind's balance and account from the existing fixtures.
 
 That covers routing, offer context, reference ids, prompt length, business and conversation scoping, retry keys and deduplicating concurrent submits. The assistant suite covers migration, multiple chats, business isolation, drafts, interrupted runs, partial stream parsing and model metadata. Media and business suites pass. Production frontend and native builds pass.
 

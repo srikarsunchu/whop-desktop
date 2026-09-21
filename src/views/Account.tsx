@@ -2,6 +2,7 @@ import { Button } from "frosted-ui";
 import { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { PageHeader, Panel, QueryBody } from "../components/Panel";
+import { ApiKeyDialog } from "../components/ApiKeyDialog";
 import {
   ActionEditor,
   Directory,
@@ -15,7 +16,7 @@ import { useAccount, useWhop, invalidateAll } from "../lib/whop";
 import { UserCell, StatusBadge } from "../components/UserCell";
 import { buildFields } from "../lib/business-actions";
 export function AccountView({}: { runInTerminal: (c: string) => void }) {
-  const { account, cliPath, cliVersion, loggedIn, profile, refreshAccounts } =
+  const { account, cliPath, cliVersion, loggedIn, profile, authMethod, refreshAccounts } =
     useAccount();
   const detail = useWhop<RecordData>(
     account ? ["accounts", "get", account.id] : null,
@@ -26,6 +27,7 @@ export function AccountView({}: { runInTerminal: (c: string) => void }) {
   ]);
   const [action, setAction] = useState<ActionSpec | null>(null);
   const [signing, setSigning] = useState(false);
+  const [keyOpen, setKeyOpen] = useState(false);
   const [error, setError] = useState("");
   const roles = [
     "admin",
@@ -79,6 +81,9 @@ export function AccountView({}: { runInTerminal: (c: string) => void }) {
             <Button variant="surface" onClick={() => window.dispatchEvent(new Event("whopdesktop:setup"))}>Workspace setup</Button>
             <Button variant="soft" onClick={refreshAccounts}>
               Refresh connection
+            </Button>
+            <Button variant="surface" disabled={signing || !cliPath} onClick={() => setKeyOpen(true)}>
+              Connect API key
             </Button>
             <Button
               disabled={signing || !cliPath}
@@ -144,8 +149,17 @@ export function AccountView({}: { runInTerminal: (c: string) => void }) {
                 "Profile",
                 account?.demo ? "Demo workspace" : (profile ?? "None"),
               ],
+              [
+                "Sign-in method",
+                account?.demo ? "—" : authMethod === "api_key" ? "API key" : authMethod === "oauth" ? "Browser (OAuth)" : "—",
+              ],
             ]}
           />
+          {!account?.demo && loggedIn && authMethod === "oauth" && (
+            <p className="workspace-notice">
+              Browser sign-ins cannot manage webhooks. Connect an API key for this business to use them; if a page reports a missing permission, sign in with Whop again to pick up scopes added since this login.
+            </p>
+          )}
           <details className="workspace-technical">
             <summary>Technical details</summary>
             <Facts
@@ -255,6 +269,7 @@ export function AccountView({}: { runInTerminal: (c: string) => void }) {
         label={(r) => r.user?.name ?? r.user?.username ?? r.email ?? r.id}
         secondary={(r) => r.role?.replaceAll("_", " ")}
       />
+      <ApiKeyDialog open={keyOpen} onOpenChange={setKeyOpen} />
       {action && (
         <ActionEditor
           key={action.key}

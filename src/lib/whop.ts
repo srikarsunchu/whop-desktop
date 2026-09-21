@@ -67,6 +67,8 @@ export interface AccountState {
   cliVersion: string | null;
   loggedIn: boolean | null;
   profile: string | null;
+  /** `oauth` or `api_key`, from `whop auth status`. Decides which scope fix applies. */
+  authMethod: string | null;
 }
 
 export const AccountContext = createContext<AccountState>({
@@ -78,6 +80,7 @@ export const AccountContext = createContext<AccountState>({
   cliVersion: null,
   loggedIn: null,
   profile: null,
+  authMethod: null,
 });
 
 export const useAccount = () => useContext(AccountContext);

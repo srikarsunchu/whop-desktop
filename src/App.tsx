@@ -31,6 +31,7 @@ import { AccountView } from "./views/Account";
 interface AuthStatus {
   loggedIn: boolean;
   profile?: string;
+  method?: string;
   account?: { id: string; title: string; route?: string } | null;
 }
 
@@ -53,6 +54,7 @@ export function App() {
   const [cliVersion, setCliVersion] = useState<string | null>(null);
   const [loggedIn, setLoggedIn] = useState<boolean | null>(null);
   const [profile, setProfile] = useState<string | null>(null);
+  const [authMethod, setAuthMethod] = useState<string | null>(null);
 
   const setView = useCallback((v: ViewId) => {
     setViewState(v);
@@ -90,6 +92,7 @@ export function App() {
         const st = await runWhopJson<AuthStatus>(["auth", "status"]);
         setLoggedIn(!!st.loggedIn);
         setProfile(st.profile ?? null);
+        setAuthMethod(st.method ?? null);
         if (st.account)
           current = {
             id: st.account.id,
@@ -200,6 +203,7 @@ export function App() {
       cliVersion,
       loggedIn,
       profile,
+      authMethod,
     }),
     [
       account,
@@ -210,6 +214,7 @@ export function App() {
       cliVersion,
       loggedIn,
       profile,
+      authMethod,
     ],
   );
 

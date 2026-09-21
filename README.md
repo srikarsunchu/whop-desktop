@@ -155,10 +155,19 @@ WHOP_DESKTOP_ACCOUNT=biz_demoNorthwind WHOP_DESKTOP_VIEW=overview \
 
 ## Known limitations
 
-- **Scopes.** An OAuth login lacks some scopes: `notifications *` needs
-  `user:notifications:read`, `webhooks *` needs an API-key login
-  (`whop login --api-key`). The app shows the exact fix instead of failing
-  silently. Recommended actions are not enabled on every business yet.
+- **Scopes.** Two resources need more than a plain browser sign-in, and the
+  app performs the fix itself instead of failing silently:
+  - `notifications *` needs `user:notifications:read`. The current CLI's
+    OAuth flow already requests it, so a "Missing required permission" error
+    only means the login predates that scope. The callout offers "Sign in
+    with Whop" and the fresh token has it.
+  - `webhooks *` needs `developer:manage_webhook`, which Whop grants only to
+    API keys. The callout (and Account → Connect API key) opens a dialog that
+    runs `whop auth login --method api-key`; the key reaches the CLI through
+    `WHOP_API_KEY`, never the command line, and is stored only by the CLI.
+    The new profile becomes active; switch back from Account → Saved
+    profiles.
+  Recommended actions are not enabled on every business yet.
 - **Ledger and stats shapes** are read defensively; if Whop changes the JSON,
   the Terminal still shows the raw output.
 - **Google sign-in in the web window.** WKWebView only supports cross-device

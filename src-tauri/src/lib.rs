@@ -566,6 +566,57 @@ async fn whop_raw(args: Vec<String>) -> Result<RawOutput, String> {
         .await.map_err(|e| format!("CLI task failed: {e}"))?
 }
 
+/// API-key login. The key travels to the CLI through `WHOP_API_KEY` (never
+/// argv, so it does not show up in `ps`) and is not logged or stored here; the
+/// CLI keeps it in its own profile store. Needed because `webhooks *` is only
+/// authorised for API keys, never for OAuth tokens.
+#[tauri::command]
+async fn whop_login_api_key(api_key: String, profile: String) -> Result<(), String> {
+    let api_key = api_key.trim().to_string();
+    let profile = profile.trim().to_string();
+    if api_key.is_empty() {
+        return Err("Paste an API key first.".into());
+    }
+    if profile.chars().any(|c| !(c.is_ascii_alphanumeric() || c == '-' || c == '_' || c == '.')) {
+        return Err("Profile names can only use letters, numbers, dots, dashes and underscores.".into());
+    }
+    tauri::async_runtime::spawn_blocking(move || {
+        use std::process::Stdio;
+        let bin = whop_binary().ok_or("Install the Whop CLI first.")?;
+        let mut args: Vec<String> = ["auth", "login", "--method", "api-key", "--format", "json"]
+            .iter().map(|s| s.to_string()).collect();
+        if !profile.is_empty() {
+            args.push("--profile".into());
+            args.push(profile);
+        }
+        let out = Command::new(bin)
+            .args(&args)
+            .env("WHOP_API_KEY", &api_key)
+            .env("NO_COLOR", "1")
+            .env("CI", "1")
+            .stdin(Stdio::null())
+            .output()
+            .map_err(|e| format!("failed to run whop: {e}"))?;
+        let stdout = String::from_utf8_lossy(&out.stdout);
+        if let Ok(v) = serde_json::from_str::<serde_json::Value>(stdout.trim()) {
+            if v.get("data").is_none() {
+                if let Some(m) = v.get("message").and_then(|m| m.as_str()) {
+                    return Err(m.to_string());
+                }
+            }
+        }
+        if out.status.success() {
+            Ok(())
+        } else {
+            let stderr = String::from_utf8_lossy(&out.stderr);
+            let first = stderr.lines().find(|l| !l.trim().is_empty()).unwrap_or("").trim();
+            Err(if first.is_empty() { "API-key sign-in failed. Check the key and try again.".into() } else { first.to_string() })
+        }
+    })
+    .await
+    .map_err(|e| format!("CLI task failed: {e}"))?
+}
+
 /// Browser OAuth without exposing authorization URLs or tokens to the renderer.
 #[tauri::command]
 async fn whop_login() -> Result<(), String> {
@@ -1131,6 +1182,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             whop_json,
             whop_login,
+            whop_login_api_key,
             whop_raw,
             whop_binary_path,
             launch_hints,

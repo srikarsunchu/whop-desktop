@@ -2,8 +2,8 @@ import { Button, Card, IconButton, Kbd, Text, TextField, Tooltip, toast } from "
 import { CopyIcon, ReloadIcon } from "@radix-ui/react-icons";
 import { useEffect, useRef, useState } from "react";
 import { JsonText } from "../components/Markdown";
-import { PageHeader } from "../components/Panel";
-import { runWhopRaw, useAccount } from "../lib/whop";
+import { ErrorState, PageHeader } from "../components/Panel";
+import { runWhopRaw, useAccount, type WhopError } from "../lib/whop";
 
 interface Entry {
   id: number;
@@ -115,6 +115,18 @@ export function Terminal({ seed, onSeedConsumed, embedded }: { seed: string | nu
   };
 
   const isWrite = WRITE.test(line);
+  /** A failed command whose JSON envelope is a permission/scope problem gets the same guided fix as the pages. */
+  const scopeError = (e: { out?: string; code?: number }): WhopError | null => {
+    if (!e.code || !e.out) return null;
+    try {
+      const v = JSON.parse(e.out) as Partial<WhopError> & { data?: unknown };
+      if (v && typeof v.message === "string" && !("data" in v) && /permission|scope|API-key login/i.test(v.message))
+        return { code: String(v.code ?? e.code), message: v.message };
+    } catch {
+      /* not JSON */
+    }
+    return null;
+  };
   const copy = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text);
@@ -194,6 +206,10 @@ export function Terminal({ seed, onSeedConsumed, embedded }: { seed: string | nu
                         </div>
                       ) : null}
                       {e.err ? <div className="t-err">{e.err.trimEnd()}</div> : null}
+                      {(() => {
+                        const err = scopeError(e);
+                        return err ? <ErrorState error={err} onRun={run} /> : null;
+                      })()}
                       <div className="t-muted">
                         exit {e.code} · {Math.round(e.ms ?? 0)}ms
                       </div>

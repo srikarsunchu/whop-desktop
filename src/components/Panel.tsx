@@ -1,8 +1,10 @@
 import { Button, Callout, Card, Code, EmptyState, Heading, Spinner, Text } from "frosted-ui";
 import { ExclamationTriangleIcon, LockClosedIcon } from "@radix-ui/react-icons";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import { CommandStrip } from "./CommandStrip";
-import type { UseWhopResult, WhopError } from "../lib/whop";
+import { ApiKeyDialog } from "./ApiKeyDialog";
+import { invalidateAll, useAccount, type UseWhopResult, type WhopError } from "../lib/whop";
 
 /** A Frosted Card with a title row, the command strip, and body. */
 export function Panel({
@@ -91,16 +93,58 @@ export function EmptyPanel({ title, description, action, icon }: { title: string
   );
 }
 
-const SCOPE_HINTS: { match: RegExp; title: string; fix: string }[] = [
-  { match: /API-key login|developer:manage_webhook/i, title: "Needs an API-key login", fix: "whop login --api-key" },
-  { match: /Missing required permission: (\S+)/i, title: "Missing permission", fix: "whop login --api-key" },
-  { match: /not found|ENOENT|Install it/i, title: "Whop CLI not found", fix: "curl -fsSL https://whop.com/install.sh | sh" },
-  { match: /not logged in|unauthorized|401/i, title: "Not signed in", fix: "whop login" },
-];
+type Fix = {
+  title: string;
+  /** Plain-language explanation shown under the title. */
+  note?: string;
+  /** A command the Terminal can run (install, etc.). */
+  command?: string;
+  /** A login the app can perform itself. */
+  login?: "oauth" | "api-key";
+};
 
-/** Shows a CLI error as a Whop-style callout with the exact command that fixes it. */
+/**
+ * Turns a CLI error into the one fix that actually applies. Two facts drive it:
+ * the current CLI's OAuth flow already asks for `user:notifications:*`, so a
+ * "Missing required permission" on an OAuth login just means the token predates
+ * that scope and a fresh sign-in fixes it; and `developer:manage_webhook` is
+ * never granted to OAuth tokens, so webhooks need an API-key profile.
+ */
+export function describeFix(error: WhopError, authMethod: string | null): Fix | null {
+  const m = error.message;
+  if (/developer:manage_webhook|API-key login/i.test(m)) {
+    return {
+      title: "Needs an API-key login",
+      note: "Whop only authorises webhooks for API keys, not for the browser sign-in. Connect a key for this business to use them.",
+      login: "api-key",
+    };
+  }
+  const scope = /Missing required permission: (\S+)/i.exec(m)?.[1];
+  if (scope) {
+    if (authMethod === "api_key")
+      return {
+        title: "This API key lacks a permission",
+        note: `Grant ${scope} to the key in the Whop dashboard (Developer → API keys), then connect it again.`,
+        login: "api-key",
+      };
+    return {
+      title: "Sign in again to add a newer permission",
+      note: `This login was created before the CLI asked for ${scope}. Signing in with Whop again grants it; nothing else changes.`,
+      login: "oauth",
+    };
+  }
+  if (/not found|ENOENT|Install it/i.test(m)) return { title: "Whop CLI not found", command: "curl -fsSL https://whop.com/install.sh | sh" };
+  if (/not logged in|unauthorized|401|expired/i.test(m)) return { title: "Not signed in", login: "oauth" };
+  return null;
+}
+
+/** Shows a CLI error as a Whop-style callout with the exact fix, and performs it when the app can. */
 export function ErrorState({ error, onRun }: { error: WhopError; onRun?: (command: string) => void }) {
-  const hint = SCOPE_HINTS.find((h) => h.match.test(error.message));
+  const { authMethod, refreshAccounts } = useAccount();
+  const [busy, setBusy] = useState(false);
+  const [keyOpen, setKeyOpen] = useState(false);
+  const [loginError, setLoginError] = useState("");
+  const fix = describeFix(error, authMethod);
   const scope = /permission: (\S+)/i.exec(error.message)?.[1];
   const locked = /permission|scope|API-key/i.test(error.message);
   const unavailable = /don't have access|not available|not enabled|yet\./i.test(error.message);
@@ -115,10 +159,24 @@ export function ErrorState({ error, onRun }: { error: WhopError; onRun?: (comman
       </Callout.Root>
     );
   }
+  async function signInAgain() {
+    setBusy(true);
+    setLoginError("");
+    try {
+      await invoke("whop_login");
+      invalidateAll();
+      await refreshAccounts();
+    } catch (e) {
+      setLoginError(String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+  const fixCommand = fix?.command ?? (fix?.login === "oauth" ? "whop login --method oauth" : fix?.login === "api-key" ? "whop login --method api-key" : undefined);
   return (
     <Callout.Root color={locked ? "amber" : "red"} style={{ marginTop: 8 }}>
       <Callout.Icon>{locked ? <LockClosedIcon /> : <ExclamationTriangleIcon />}</Callout.Icon>
-      <Callout.Title>{hint?.title ?? `whop returned ${error.code}`}</Callout.Title>
+      <Callout.Title>{fix?.title ?? `whop returned ${error.code}`}</Callout.Title>
       <Callout.Description>
         {scope ? (
           <>
@@ -127,18 +185,27 @@ export function ErrorState({ error, onRun }: { error: WhopError; onRun?: (comman
         ) : (
           error.message.split("\n")[0]
         )}
-        {hint && (
+        {fix?.note && <> {fix.note}</>}
+        {fixCommand && (
           <>
             {" "}
-            Fix: <Code size="1">{hint.fix}</Code>
+            Fix: <Code size="1">{fixCommand}</Code>
           </>
         )}
+        {loginError && <> {loginError}</>}
       </Callout.Description>
-      {hint && onRun && (
+      {fix && (
         <Callout.Actions>
-          <Callout.Action onClick={() => onRun(hint.fix)}>Open in Terminal</Callout.Action>
+          {fix.login === "oauth" && (
+            <Callout.Action onClick={signInAgain} disabled={busy}>
+              {busy ? "Finish in browser…" : "Sign in with Whop"}
+            </Callout.Action>
+          )}
+          {fix.login === "api-key" && <Callout.Action onClick={() => setKeyOpen(true)}>Connect API key</Callout.Action>}
+          {fix.command && onRun && <Callout.Action onClick={() => onRun(fix.command!)}>Open in Terminal</Callout.Action>}
         </Callout.Actions>
       )}
+      {fix?.login === "api-key" && <ApiKeyDialog open={keyOpen} onOpenChange={setKeyOpen} reason={fix.note} />}
     </Callout.Root>
   );
 }

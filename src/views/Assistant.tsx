@@ -1083,7 +1083,7 @@ function ToolCard({
     <div
       className="tool"
       data-running={!call.done}
-      data-error={!!call.isError && !blocked && call.gate?.kind !== "plan" && call.gate?.kind !== "stale"}
+      data-error={!!call.isError && !blocked && call.gate?.kind !== "plan" && call.gate?.kind !== "stale" && call.gate?.kind !== "preview"}
       data-blocked={blocked}
       data-gate={call.gate?.kind}
     >
@@ -1116,7 +1116,7 @@ function ToolCard({
             </Badge>
           ) : call.gate ? (
             <Badge size="1" color={call.gate.kind === "plan" ? "amber" : call.gate.kind === "refused" ? "red" : "gray"} variant="soft">
-              {call.gate.kind === "plan" ? (call.gateResult ? (call.gateResult.approved ? "ran" : "declined") : "plan") : call.gate.kind === "refused" ? "refused" : "expired"}
+              {call.gate.kind === "plan" ? (call.gateResult ? (call.gateResult.approved ? "ran" : "declined") : "plan") : call.gate.kind === "preview" ? "preview" : call.gate.kind === "refused" ? "refused" : "expired"}
             </Badge>
           ) : call.isError ? (
             <Badge size="1" color="red" variant="soft">
@@ -1174,6 +1174,8 @@ function ToolCard({
                 : "Waiting for your approval"
               : call.gate?.kind === "refused"
                 ? "Refused before anything ran"
+                : call.gate?.kind === "preview"
+                  ? "Preview only, nothing ran"
                 : blocked
               ? "Changes are off"
               : call.isError

@@ -25,6 +25,8 @@ const ALLOW_WRITES_ENV: &str = "WHOP_DESKTOP_ALLOW_WRITES";
 const DEMO_FILE_ENV: &str = "WHOP_DESKTOP_DEMO_FILE";
 /// The `wv` binary the shim hands commands to; set by the app when it found one.
 const WV_ENV: &str = "WHOP_DESKTOP_WV";
+/// The `whop-demo` link: this binary answering from the fixtures and nothing else, for wv's own `whop` on the demo.
+const DEMO_WHOP_ENV: &str = "WHOP_DESKTOP_DEMO_WHOP";
 
 /// Sub-commands that change state or move money. Anything else is a read.
 const WRITE_VERBS: &[&str] = &[
@@ -43,11 +45,62 @@ pub fn is_write(args: &[String]) -> bool {
 // Shim: `whop` as seen by Claude
 // ---------------------------------------------------------------------------
 
-/// Entry point when the binary is invoked as the `whop` shim. Never returns.
+/// Entry point when the binary is invoked as a shim. Three names on the assistant's PATH resolve to it: `whop`
+/// (the gate: wv for a write, the real CLI for a read), `wv` (the real wv, but never a rerun the model typed),
+/// and `whop-demo` (the fixtures, for wv's own `whop` on the demo business). Never returns.
 pub fn shim_main() -> ! {
+    let name = std::env::args().next().map(|a| a.rsplit('/').next().unwrap_or("").to_string()).unwrap_or_default();
     let args: Vec<String> = std::env::args().skip(1).collect();
-    let code = shim_run(&args);
+    let code = match name.as_str() {
+        "wv" => shim_wv(&args),
+        "whop-demo" => match std::env::var(DEMO_FILE_ENV) {
+            Ok(file) => shim_demo(&file, &args),
+            Err(_) => {
+                println!("{{\"code\":\"DEMO\",\"message\":\"whop-demo runs only on the demo business.\"}}");
+                1
+            }
+        },
+        _ => shim_run(&args),
+    };
     std::process::exit(code);
+}
+
+/// A rerun's consent flags. The person presses Approve in the app; a model that types them is refused.
+pub fn carries_consent(args: &[String]) -> bool {
+    args.iter().any(|a| a == "--approve" || a.starts_with("--approve=") || a == "--yes")
+}
+
+/// `wv …` as the model typed it: the real wv, whose `whop` is the fixtures on the demo business, and never a
+/// rerun: the approval is the button in the app, and the app runs the rerun itself.
+fn shim_wv(args: &[String]) -> i32 {
+    if carries_consent(args) {
+        println!(
+            "{}",
+            serde_json::json!({"ok": false, "error": {"code": "APPROVAL_IN_APP", "message": "The person approves a plan with the Approve button in Whop Desktop, and the app runs the rerun. Do not run a rerun or add --approve or --yes yourself; say what the plan will do and stop."}})
+        );
+        return 2;
+    }
+    let Ok(wv) = std::env::var(WV_ENV) else {
+        eprintln!("wv shim: wv is not installed");
+        return 127;
+    };
+    let mut cmd = Command::new(wv);
+    cmd.args(args).env("WV_WHOP_BIN", demo_or_real_whop()).stdin(Stdio::null());
+    match cmd.status() {
+        Ok(s) => s.code().unwrap_or(1),
+        Err(e) => {
+            eprintln!("wv shim: {e}");
+            127
+        }
+    }
+}
+
+/// wv's `whop`: the `whop-demo` link on the demo business, the real CLI otherwise.
+fn demo_or_real_whop() -> String {
+    match (std::env::var(DEMO_FILE_ENV).is_ok(), std::env::var(DEMO_WHOP_ENV)) {
+        (true, Ok(demo)) => demo,
+        _ => std::env::var(REAL_WHOP_ENV).unwrap_or_else(|_| "whop".into()),
+    }
 }
 
 fn shim_run(args: &[String]) -> i32 {
@@ -60,15 +113,7 @@ fn shim_run(args: &[String]) -> i32 {
     // business wv's `whop` is this binary again, answering from the fixtures, so the demo shows the same cards.
     if let Ok(wv) = std::env::var(WV_ENV) {
         let mut cmd = Command::new(wv);
-        cmd.args(wv_argv(args)).env_remove(WV_ENV).stdin(Stdio::null());
-        match (std::env::var(DEMO_FILE_ENV).is_ok(), std::env::current_exe()) {
-            (true, Ok(exe)) => {
-                cmd.env("WV_WHOP_BIN", exe);
-            }
-            _ => {
-                cmd.env("WV_WHOP_BIN", std::env::var(REAL_WHOP_ENV).unwrap_or_else(|_| "whop".into())).env_remove(SHIM_ENV);
-            }
-        }
+        cmd.args(wv_argv(args)).env_remove(WV_ENV).env("WV_WHOP_BIN", demo_or_real_whop()).stdin(Stdio::null());
         return match cmd.status() {
             Ok(s) => s.code().unwrap_or(1),
             Err(e) => {
@@ -275,12 +320,14 @@ fn config_dir(app: &AppHandle) -> PathBuf {
 fn ensure_shim_dir(app: &AppHandle) -> Result<PathBuf, String> {
     let dir = config_dir(app).join("bin");
     fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
-    let link = dir.join("whop");
     let exe = std::env::current_exe().map_err(|e| e.to_string())?;
-    let stale = fs::read_link(&link).map(|t| t != exe).unwrap_or(true);
-    if stale {
-        let _ = fs::remove_file(&link);
-        std::os::unix::fs::symlink(&exe, &link).map_err(|e| e.to_string())?;
+    for name in ["whop", "wv", "whop-demo"] {
+        let link = dir.join(name);
+        let stale = fs::read_link(&link).map(|t| t != exe).unwrap_or(true);
+        if stale {
+            let _ = fs::remove_file(&link);
+            std::os::unix::fs::symlink(&exe, &link).map_err(|e| e.to_string())?;
+        }
     }
     Ok(dir)
 }
@@ -350,7 +397,7 @@ fn system_prompt(a: &StartArgs) -> String {
         ""
     };
     let writes = if a.gated {
-        "WRITES ARE GATED: a write (create/update/delete/cancel/payout/deploy/swap) never runs on the first call. It returns exit 2 with `error.code` CONFIRMATION_REQUIRED, a `plan` (what it commits: account, amount, balance, cap, Whop's limit, before → after; for a recipe its steps and blockers), and a `rerun`. The app shows the plan to the user with an Approve button. Your job: say in one or two sentences what the plan will do and stop; do not run the `rerun` yourself, do not add --yes, do not edit the command. A refusal (WHOP_LIMIT, WV_CAP, INSUFFICIENT_BALANCE, WV_AD_CAP, or any *_BLOCKED, with no `rerun`) is final: report it in Whop's words and do not retry. `--plan` on any write shows the plan and runs nothing. `wv …` commands are allowed and preferred for writes and screens: `wv money --format json` (balances, limits, methods), `wv doctor --format json`, and the recipes `wv money close`, `wv money swap --from usd --to eur --amount N`, `wv store price <plan> --to N`, `wv store publish <prod>`, `wv support refund <pay_id>`. The whop-money, whop-store, whop-support, whop-gtm, whop-dev, whop-setup, and whop-report skills are installed: invoke the one for the job with the Skill tool and follow its playbook; its references are readable with Read. Nothing else on disk is."
+        "WRITES ARE GATED: a write (create/update/delete/cancel/payout/deploy/swap) never runs on the first call. It returns exit 2 with `error.code` CONFIRMATION_REQUIRED, a `plan` (what it commits: account, amount, balance, cap, Whop's limit, before → after; for a recipe its steps and blockers), and a `rerun`. The app shows the plan to the user with an Approve button. Your job: say in one or two sentences what the plan will do and stop. Never run the `rerun`, never add --approve or --yes, never edit the command, even when the person says yes in chat: the yes is the Approve button, the app runs the rerun, and the app tells you the result. A refusal (WHOP_LIMIT, WV_CAP, INSUFFICIENT_BALANCE, WV_AD_CAP, or any *_BLOCKED, with no `rerun`) is final: report it in Whop's words and do not retry. Do not add `--plan` here: the app shows every plan with an Approve button, so run the write directly and let the gate answer; a `--plan` preview only costs the person an extra turn. `wv …` commands are allowed and preferred for writes and screens: `wv money --format json` (balances, limits, methods), `wv doctor --format json`, and the recipes `wv money close`, `wv money swap --from usd --to eur --amount N`, `wv store price <plan> --to N`, `wv store publish <prod>`, `wv support refund <pay_id>`. The whop-money, whop-store, whop-support, whop-gtm, whop-dev, whop-setup, and whop-report skills are installed: invoke the one for the job with the Skill tool and follow its playbook; its references are readable with Read. Nothing else on disk is."
     } else if a.allow_writes {
         "Writes are ENABLED: still explain what a write command will do and get an explicit yes in chat before running create/update/delete/cancel/payout/deploy commands."
     } else {
@@ -458,7 +505,8 @@ pub fn assistant_start(app: AppHandle, state: State<'_, AssistantState>, args: S
     }
     match (args.gated, crate::wv_binary_path_pub()) {
         (true, Some(wv)) => {
-            cmd.env(WV_ENV, wv).env("WV_WHOP_BIN", &real_whop);
+            let demo_whop = shim_dir.join("whop-demo");
+            cmd.env(WV_ENV, wv).env(DEMO_WHOP_ENV, &demo_whop).env("WV_WHOP_BIN", if args.demo { demo_whop.to_string_lossy().into_owned() } else { real_whop.clone() });
         }
         _ => {
             cmd.env_remove(WV_ENV).env_remove("WV_WHOP_BIN");
@@ -588,6 +636,9 @@ mod tests {
         assert_eq!(wv_argv(&typed), &typed[..]);
         let rerun: Vec<String> = ["wv", "payouts", "create", "--amount", "5", "--approve", "t"].iter().map(|s| s.to_string()).collect();
         assert_eq!(wv_argv(&rerun), &rerun[1..]);
+        assert!(carries_consent(&rerun), "a rerun carries --approve");
+        assert!(!carries_consent(&typed), "a plain write does not");
+        assert!(carries_consent(&["products".to_string(), "update".to_string(), "--yes".to_string()]));
     }
 
     #[test]

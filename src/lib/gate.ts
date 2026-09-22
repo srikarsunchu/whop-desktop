@@ -8,7 +8,7 @@
  * and no rerun. `APPROVAL_EXPIRED` and `APPROVAL_INVALID` mean a rerun went stale or was edited.
  */
 export interface Gate {
-  kind: "plan" | "refused" | "stale";
+  kind: "plan" | "refused" | "stale" | "preview";
   code: string;
   message: string;
   hint?: string;
@@ -31,6 +31,9 @@ export function parseGate(output: string | undefined): Gate | undefined {
   } catch {
     return undefined;
   }
+  // `--plan`: the plan and a hint, no error, no rerun. Shown as a card with nothing to press.
+  if (env?.ok === true && env.plan && typeof env.plan === "object" && !env.rerun && typeof env.hint === "string" && env.meta?.wrapper === "wv")
+    return { kind: "preview", code: "PLAN", message: env.hint, plan: env.plan as Record<string, unknown> };
   const code = env?.error?.code;
   if (typeof code !== "string" || env.ok !== false) return undefined;
   const plan = env.plan && typeof env.plan === "object" ? (env.plan as Record<string, unknown>) : undefined;

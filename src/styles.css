@@ -1419,7 +1419,7 @@ button:focus-visible, .chart:focus-visible { outline: 2px solid var(--accent-8);
 /* The plan a write came back with (wv's gate), inside a tool card. */
 .plan { margin: 0 12px 10px 36px; padding: 10px 12px; border: 1px solid var(--amber-a6); border-radius: 8px; background: var(--amber-a2); display: grid; gap: 8px; }
 .plan[data-kind="refused"] { border-color: var(--red-a6); background: var(--red-a2); }
-.plan[data-kind="stale"] { border-color: var(--gray-a6); background: var(--gray-a2); }
+.plan[data-kind="stale"], .plan[data-kind="preview"] { border-color: var(--gray-a6); background: var(--gray-a2); }
 .plan[data-answered="true"] { border-color: var(--gray-a5); background: var(--gray-a2); }
 .plan-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .plan-rows { display: grid; grid-template-columns: max-content 1fr; gap: 3px 12px; margin: 0; font-size: 12px; }

@@ -67,7 +67,7 @@ export function PlanCard({ gate, result, demo, onApprove, onDecline }: { gate: G
     <div className="plan" data-kind={gate.kind} data-answered={!!result}>
       <div className="plan-head">
         <Text size="2" weight="medium">
-          {gate.kind === "plan" ? "Plan" : gate.kind === "stale" ? "Approval expired" : "Refused"}
+          {gate.kind === "plan" ? "Plan" : gate.kind === "preview" ? "Preview" : gate.kind === "stale" ? "Approval expired" : "Refused"}
         </Text>
         <Badge size="1" color={demo || mode === "sandbox" ? "green" : "amber"} variant="soft">
           {demo ? "demo · nothing real changes" : mode === "sandbox" ? "sandbox" : "writes to production"}
@@ -107,13 +107,19 @@ export function PlanCard({ gate, result, demo, onApprove, onDecline }: { gate: G
           </Text>
         </div>
       ))}
-      {gate.kind !== "plan" && (
+      {gate.kind === "refused" || gate.kind === "stale" ? (
         <div>
           <Text size="1" color={gate.kind === "refused" ? "red" : "amber"}>
             {gate.message}
           </Text>
         </div>
-      )}
+      ) : gate.kind === "preview" ? (
+        <div>
+          <Text size="1" color="gray">
+            Preview only. Nothing ran; ask for the change to get an Approve button.
+          </Text>
+        </div>
+      ) : null}
       {gate.kind === "plan" && !result && (
         <div className="plan-actions">
           {typed && (

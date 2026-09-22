@@ -103,7 +103,7 @@ export function businessDemo(
       value: {
         active: "demo",
         profiles: [
-          { name: "demo", method: "local", accountTitle: "Northwind Picks" },
+          { name: "demo", method: "api_key", accountId: "biz_demoNorthwind", accountTitle: "Northwind Picks" },
         ],
       },
     };

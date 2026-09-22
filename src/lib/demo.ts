@@ -208,6 +208,8 @@ function people() {
       email: purchased ? `${u[1].replace(/[._]/g, "")}@gmail.com` : null,
       first_seen_at: iso((20 + i * 3) * DAY),
       last_seen_at: iso(i * 2 * 3600 + 900),
+      first_source: i % 3 === 0 ? "meta" : i % 3 === 1 ? "direct" : null,
+      last_source: i % 2 ? "meta" : null,
       event_count: 4 + Math.round(r() * 60),
       purchase_count: purchased ? 1 + (i % 3) : 0,
       ltv: purchased ? 49 * (1 + (i % 3)) + (i % 2 ? 299 : 0) : 0,
@@ -392,6 +394,18 @@ function demoSeed(args: string[]): any {
       return { ...DEMO_ACCOUNT, business_type: "community", industry_type: "sports_betting", country: "us" };
     case "auth status":
       return { loggedIn: true, profile: "demo", account: { id: DEMO_ACCOUNT_ID, title: DEMO_ACCOUNT.title } };
+    // What `wv doctor` and `wv setup` read: a developer login, its permissions, the ads preferences, one webhook that delivers.
+    case "permissions check":
+      return withPage(["developer:manage_webhook", "payout:withdraw_funds", "access_pass:create", "plan:create", "payment:basic:read", "stats:read"].map((action) => ({ action, granted: true })));
+    case "accounts preferences":
+      // A bare record, like `accounts get`: the demo answers without the `ok` envelope, so the record is the whole body.
+      return { ads_payment_methods: [{ id: "pm_NwVisa4242", brand: "visa", last4: "4242" }], ads_reporting_currency: "usd", ads_scheduling_timezone: "America/New_York", economic_intelligence: true };
+    case "webhooks list":
+      return withPage([{ id: "hook_NwOrders", url: "https://northwindpicks.com/hooks/whop", enabled: true, events: ["payment.succeeded", "membership.went_valid", "membership.went_invalid"], api_version: "v1", consecutive_failures: 0, created_at: iso(38 * DAY) }]);
+    case "webhooks deliveries":
+      return withPage([0.1, 0.6, 1.4].map((d, i) => ({ id: `whd_Nw${i}`, webhook_id: "hook_NwOrders", event: i ? "membership.went_valid" : "payment.succeeded", success: true, status_code: 200, sent_at: iso(d * DAY), created_at: iso(d * DAY) })));
+    case "payouts supported-methods":
+      return withPage([{ id: "spm_NwBank", type: "bank_account", name: "US bank account", country: "US", currency: "usd" }]);
     default:
       throw { code: "DEMO", message: `No demo data for \`whop ${key}\`. Switch to a real business to run it.` };
   }

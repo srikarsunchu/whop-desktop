@@ -217,6 +217,12 @@ export function buildDemoFixtures(): Record<string, unknown> {
     ["memberships list"],
     ["payments list"],
     ["resolution-center-cases list"],
+    ["auth list"],
+    ["permissions check"],
+    ["accounts preferences"],
+    ["webhooks list"],
+    ["webhooks deliveries"],
+    ["payouts supported-methods"],
     [
       "memberships list --status active",
       ["memberships", "list", "--status", "active"],

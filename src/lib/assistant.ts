@@ -152,11 +152,14 @@ export function handleLine(
       for (const c of content) {
         if (c.type === "tool_use") {
           const input = c.input ?? {};
-          sink.onToolInput(
-            c.id,
-            String(input.command ?? ""),
-            input.description,
-          );
+          // Skill and Read (a skill's own reference file) show as small cards with a label, not a shell command.
+          const [command, description] =
+            c.name === "Skill"
+              ? [`skill ${String(input.skill ?? "")}`, `Using the ${String(input.skill ?? "")} skill`]
+              : c.name === "Read"
+                ? [`read ${String(input.file_path ?? "").split("/").slice(-2).join("/")}`, `Reading ${String(input.file_path ?? "").split("/").slice(-1)[0]}`]
+                : [String(input.command ?? ""), input.description];
+          sink.onToolInput(c.id, command, description);
           partialInputs.delete(c.id);
         }
       }

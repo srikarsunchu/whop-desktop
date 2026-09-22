@@ -248,6 +248,53 @@ fn ensure_shim_dir(app: &AppHandle) -> Result<PathBuf, String> {
     Ok(dir)
 }
 
+/// The seven `whop-*` skills wv ships (`<wv root>/skills/whop-*/SKILL.md` and `references/`), copied into
+/// `<config>/.claude/skills` so `--setting-sources project` loads them and nothing else from the person's own
+/// Claude setup. Returns the skills directory when at least one skill was copied. Evals are not copied.
+fn sync_skills(app: &AppHandle) -> Option<PathBuf> {
+    let wv = PathBuf::from(crate::wv_binary_path_pub()?);
+    let root = fs::canonicalize(&wv).ok()?.parent()?.parent()?.to_path_buf();
+    let src = root.join("skills");
+    let dest = config_dir(app).join(".claude").join("skills");
+    fs::create_dir_all(&dest).ok()?;
+    let mut copied = 0;
+    for entry in fs::read_dir(&src).ok()?.flatten() {
+        let name = entry.file_name().to_string_lossy().to_string();
+        if !name.starts_with("whop-") || !entry.path().join("SKILL.md").is_file() {
+            continue;
+        }
+        let to = dest.join(&name);
+        let _ = fs::remove_dir_all(&to);
+        if copy_skill(&entry.path(), &to).is_ok() {
+            copied += 1;
+        }
+    }
+    dlog(&format!("skills: {copied} from {}", src.display()));
+    (copied > 0).then_some(dest)
+}
+
+fn copy_skill(from: &std::path::Path, to: &std::path::Path) -> std::io::Result<()> {
+    fs::create_dir_all(to)?;
+    fs::copy(from.join("SKILL.md"), to.join("SKILL.md"))?;
+    let refs = from.join("references");
+    if refs.is_dir() {
+        fs::create_dir_all(to.join("references"))?;
+        for f in fs::read_dir(&refs)?.flatten() {
+            if f.path().extension().map(|e| e == "md").unwrap_or(false) {
+                fs::copy(f.path(), to.join("references").join(f.file_name()))?;
+            }
+        }
+    }
+    Ok(())
+}
+
+fn dlog(msg: &str) {
+    #[cfg(debug_assertions)]
+    eprintln!("[whopdesktop] {msg}");
+    #[cfg(not(debug_assertions))]
+    let _ = msg;
+}
+
 fn system_prompt(a: &StartArgs) -> String {
     let biz = match (&a.account_title, &a.account_id) {
         (Some(t), Some(id)) => format!("{t} ({id})"),
@@ -266,7 +313,7 @@ fn system_prompt(a: &StartArgs) -> String {
         ""
     };
     let writes = if a.gated {
-        "WRITES ARE GATED: a write (create/update/delete/cancel/payout/deploy/swap) never runs on the first call. It returns exit 2 with `error.code` CONFIRMATION_REQUIRED, a `plan` (what it commits: account, amount, balance, cap, Whop's limit, before → after; for a recipe its steps and blockers), and a `rerun`. The app shows the plan to the user with an Approve button. Your job: say in one or two sentences what the plan will do and stop; do not run the `rerun` yourself, do not add --yes, do not edit the command. A refusal (WHOP_LIMIT, WV_CAP, INSUFFICIENT_BALANCE, WV_AD_CAP, or any *_BLOCKED, with no `rerun`) is final: report it in Whop's words and do not retry. `--plan` on any write shows the plan and runs nothing. `wv …` commands are allowed and preferred for writes and screens: `wv money --format json` (balances, limits, methods), `wv doctor --format json`, and the recipes `wv money close`, `wv money swap --from usd --to eur --amount N`, `wv store price <plan> --to N`, `wv store publish <prod>`, `wv support refund <pay_id>`. Do not read skill reference files; the rules above are enough."
+        "WRITES ARE GATED: a write (create/update/delete/cancel/payout/deploy/swap) never runs on the first call. It returns exit 2 with `error.code` CONFIRMATION_REQUIRED, a `plan` (what it commits: account, amount, balance, cap, Whop's limit, before → after; for a recipe its steps and blockers), and a `rerun`. The app shows the plan to the user with an Approve button. Your job: say in one or two sentences what the plan will do and stop; do not run the `rerun` yourself, do not add --yes, do not edit the command. A refusal (WHOP_LIMIT, WV_CAP, INSUFFICIENT_BALANCE, WV_AD_CAP, or any *_BLOCKED, with no `rerun`) is final: report it in Whop's words and do not retry. `--plan` on any write shows the plan and runs nothing. `wv …` commands are allowed and preferred for writes and screens: `wv money --format json` (balances, limits, methods), `wv doctor --format json`, and the recipes `wv money close`, `wv money swap --from usd --to eur --amount N`, `wv store price <plan> --to N`, `wv store publish <prod>`, `wv support refund <pay_id>`. The whop-money, whop-store, whop-support, whop-gtm, whop-dev, whop-setup, and whop-report skills are installed: invoke the one for the job with the Skill tool and follow its playbook; its references are readable with Read. Nothing else on disk is."
     } else if a.allow_writes {
         "Writes are ENABLED: still explain what a write command will do and get an explicit yes in chat before running create/update/delete/cancel/payout/deploy commands."
     } else {
@@ -320,6 +367,8 @@ pub fn assistant_start(app: AppHandle, state: State<'_, AssistantState>, args: S
     let extra_path = format!("{path}:{home}/.local/bin:/opt/homebrew/bin:/usr/local/bin");
 
     let gated = args.gated && crate::wv_binary_path_pub().is_some();
+    // With the gate on, wv's skills ride along: Skill invokes one, Read is allowed on that folder and nowhere else.
+    let skills = if gated { sync_skills(&app) } else { None };
     let mut cmd = Command::new(&claude);
     cmd.arg("-p")
         .arg(&args.prompt)
@@ -327,14 +376,15 @@ pub fn assistant_start(app: AppHandle, state: State<'_, AssistantState>, args: S
         .arg("stream-json")
         .arg("--verbose")
         .arg("--include-partial-messages")
-        // Only the built-in Bash tool exists in this run: no Read/Edit/Web*/Task to be offered and refused.
+        // Only these built-in tools exist in this run: no Edit/Write/Web*/Task to be offered and refused.
         .arg("--tools")
-        .arg("Bash")
+        .arg(if skills.is_some() { "Bash,Skill,Read" } else { "Bash" })
         .arg("--allowedTools")
         .arg("Bash(whop:*)")
         // With the gate on, `wv …` is allowed too: every write through it comes back as a plan. Its `whop` is
         // the real binary, so it never re-enters the shim.
         .args(if gated { vec!["Bash(wv:*)"] } else { vec![] })
+        .args(skills.iter().flat_map(|d| ["Skill".to_string(), format!("Read({}/**)", d.display())]))
         // `--tools` only trims the built-in set: the person's own MCP servers and settings-installed plugins
         // still load without these two, and a `whop` or `wv` MCP tool offered to the model is refused by the
         // allowlist and stalls the run instead of typing the command.
@@ -344,7 +394,7 @@ pub fn assistant_start(app: AppHandle, state: State<'_, AssistantState>, args: S
         .arg("--permission-mode")
         .arg("default")
         .arg("--max-turns")
-        .arg("30")
+        .arg(if skills.is_some() { "60" } else { "30" })
         .arg("--append-system-prompt")
         .arg(system_prompt(&args));
     if let Some(m) = &args.model {

@@ -223,12 +223,25 @@ let wvInfoCache: Promise<WvInfo> | undefined;
 /** Where `wv` is and whether it is new enough. Cached for the session; `invalidateWv` after an install or update. */
 export function wvInfo(): Promise<WvInfo> {
   wvInfoCache ??= (async () => {
-    if (!isTauri()) return { path: null, version: null, ok: false, stale: false };
-    const path = await invoke<string | null>("wv_binary_path").catch(() => null);
-    if (!path) return { path: null, version: null, ok: false, stale: false };
-    const version = (await invoke<string | null>("wv_version").catch(() => null)) ?? "0.0.0";
-    const ok = versionAtLeast(version, WV_MIN_VERSION);
-    return { path, version, ok, stale: !ok };
+    const log = (m: string) => invoke("frontend_log", { msg: m }).catch(() => undefined);
+    try {
+      if (!isTauri()) return { path: null, version: null, ok: false, stale: false };
+      const path = await invoke<string | null>("wv_binary_path").catch((e) => {
+        void log(`wv_binary_path failed: ${String(e)}`);
+        return null;
+      });
+      if (!path) return { path: null, version: null, ok: false, stale: false };
+      const version = (await invoke<string | null>("wv_version").catch((e) => {
+        void log(`wv_version failed: ${String(e)}`);
+        return null;
+      })) ?? "0.0.0";
+      const ok = versionAtLeast(version, WV_MIN_VERSION);
+      void log(`wvInfo: path=${path} version=${version} ok=${ok}`);
+      return { path, version, ok, stale: !ok };
+    } catch (e) {
+      void log(`wvInfo threw: ${String(e)}`);
+      return { path: null, version: null, ok: false, stale: false };
+    }
   })();
   return wvInfoCache;
 }

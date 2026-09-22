@@ -250,7 +250,7 @@ fn system_prompt(a: &StartArgs) -> String {
         ""
     };
     let writes = if a.gated {
-        "WRITES ARE GATED: a write (create/update/delete/cancel/payout/deploy/swap) never runs on the first call. It returns exit 2 with `error.code` CONFIRMATION_REQUIRED, a `plan` (what it commits: account, amount, balance, cap, Whop's limit, before → after; for a recipe its steps and blockers), and a `rerun`. The app shows the plan to the user with an Approve button. Your job: say in one or two sentences what the plan will do and stop; do not run the `rerun` yourself, do not add --yes, do not edit the command. A refusal (WHOP_LIMIT, WV_CAP, INSUFFICIENT_BALANCE, WV_AD_CAP, or any *_BLOCKED, with no `rerun`) is final: report it in Whop's words and do not retry. `--plan` on any write shows the plan and runs nothing. Recipes: `wv money close`, `wv money swap --from usd --to eur --amount N`, `wv store price <plan> --to N`, `wv store publish <prod>`, `wv support refund <pay_id>`; type them as `whop …` too, the shim routes them."
+        "WRITES ARE GATED: a write (create/update/delete/cancel/payout/deploy/swap) never runs on the first call. It returns exit 2 with `error.code` CONFIRMATION_REQUIRED, a `plan` (what it commits: account, amount, balance, cap, Whop's limit, before → after; for a recipe its steps and blockers), and a `rerun`. The app shows the plan to the user with an Approve button. Your job: say in one or two sentences what the plan will do and stop; do not run the `rerun` yourself, do not add --yes, do not edit the command. A refusal (WHOP_LIMIT, WV_CAP, INSUFFICIENT_BALANCE, WV_AD_CAP, or any *_BLOCKED, with no `rerun`) is final: report it in Whop's words and do not retry. `--plan` on any write shows the plan and runs nothing. `wv …` commands are allowed and preferred for writes and screens: `wv money --format json` (balances, limits, methods), `wv doctor --format json`, and the recipes `wv money close`, `wv money swap --from usd --to eur --amount N`, `wv store price <plan> --to N`, `wv store publish <prod>`, `wv support refund <pay_id>`. Do not read skill reference files; the rules above are enough."
     } else if a.allow_writes {
         "Writes are ENABLED: still explain what a write command will do and get an explicit yes in chat before running create/update/delete/cancel/payout/deploy commands."
     } else {
@@ -303,6 +303,7 @@ pub fn assistant_start(app: AppHandle, state: State<'_, AssistantState>, args: S
     let home = std::env::var("HOME").unwrap_or_default();
     let extra_path = format!("{path}:{home}/.local/bin:/opt/homebrew/bin:/usr/local/bin");
 
+    let gated = args.gated && !args.demo && crate::wv_binary_path_pub().is_some();
     let mut cmd = Command::new(&claude);
     cmd.arg("-p")
         .arg(&args.prompt)
@@ -312,6 +313,9 @@ pub fn assistant_start(app: AppHandle, state: State<'_, AssistantState>, args: S
         .arg("--include-partial-messages")
         .arg("--allowedTools")
         .arg("Bash(whop:*)")
+        // With the gate on, `wv …` is allowed too: the installed wv skills tell the model to type it, and every
+        // write through it comes back as a plan. Its `whop` is the real binary, so it never re-enters the shim.
+        .args(if gated { vec!["Bash(wv:*)"] } else { vec![] })
         .arg("--disallowedTools")
         .arg("Read")
         .arg("Edit")
@@ -322,6 +326,13 @@ pub fn assistant_start(app: AppHandle, state: State<'_, AssistantState>, args: S
         .arg("WebSearch")
         .arg("Task")
         .arg("NotebookEdit")
+        // No MCP servers from the user's own Claude config: a wv or whop MCP plugin there would be offered to
+        // the model and refused by the allowlist, and the run would stall on it instead of using `whop`.
+        .arg("--strict-mcp-config")
+        // And no user-level settings: a plugin's MCP server or a skill installed for the person's own terminal
+        // would be offered to the model here and refused by the allowlist. The prompt carries what it needs.
+        .arg("--setting-sources")
+        .arg("project")
         .arg("--permission-mode")
         .arg("default")
         .arg("--max-turns")
@@ -352,10 +363,10 @@ pub fn assistant_start(app: AppHandle, state: State<'_, AssistantState>, args: S
     }
     match (args.gated, crate::wv_binary_path_pub()) {
         (true, Some(wv)) => {
-            cmd.env(WV_ENV, wv);
+            cmd.env(WV_ENV, wv).env("WV_WHOP_BIN", &real_whop);
         }
         _ => {
-            cmd.env_remove(WV_ENV);
+            cmd.env_remove(WV_ENV).env_remove("WV_WHOP_BIN");
         }
     }
     if args.demo {
@@ -364,6 +375,8 @@ pub fn assistant_start(app: AppHandle, state: State<'_, AssistantState>, args: S
         cmd.env_remove(DEMO_FILE_ENV);
     }
     cmd.stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped());
+    #[cfg(debug_assertions)]
+    eprintln!("[whopdesktop] assistant: gated={gated} demo={} resume={} argv={:?}", args.demo, args.session_id.is_some(), cmd.get_args().map(|a| a.to_string_lossy().chars().take(60).collect::<String>()).collect::<Vec<_>>());
 
     let mut child = cmd.spawn().map_err(|e| format!("failed to start claude: {e}"))?;
     let stdout = child.stdout.take().ok_or("no stdout")?;
@@ -402,6 +415,8 @@ pub fn assistant_start(app: AppHandle, state: State<'_, AssistantState>, args: S
                 None => -1,
             }
         };
+        #[cfg(debug_assertions)]
+        eprintln!("[whopdesktop] assistant done: code={code} stderr={}", stderr.chars().take(400).collect::<String>().replace('\n', " | "));
         let _ = app2.emit("assistant:done", DoneEvent { run_id: rid, code, stderr });
     });
     Ok(())

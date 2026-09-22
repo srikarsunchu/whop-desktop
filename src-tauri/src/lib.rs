@@ -676,14 +676,23 @@ fn wv_binary_path() -> Option<String> {
     wv_binary_path_pub()
 }
 
+/// Debug builds only: a line from the frontend into the dev log, for what the webview console would show.
+#[tauri::command]
+fn frontend_log(msg: String) {
+    dlog(&format!("frontend: {}", msg.chars().take(500).collect::<String>()));
+}
+
 /// `wv --wv-version`, so the app can require the wv it was built against; a wv too old to print it answers with
 /// whop's version banner or nothing, and reads as 0.0.0.
 #[tauri::command]
 async fn wv_version() -> Option<String> {
     tauri::async_runtime::spawn_blocking(|| {
         let bin = wv_binary()?;
-        let out = Command::new(bin).arg("--wv-version").env("NO_COLOR", "1").stdin(std::process::Stdio::null()).output().ok()?;
+        let home = std::env::var("HOME").unwrap_or_default();
+        let extra = format!("{home}/.local/bin:/opt/homebrew/bin:/usr/local/bin:{}", std::env::var("PATH").unwrap_or_default());
+        let out = Command::new(&bin).arg("--wv-version").env("NO_COLOR", "1").env("PATH", extra).stdin(std::process::Stdio::null()).output().ok()?;
         let text = String::from_utf8_lossy(&out.stdout).trim().to_string();
+        dlog(&format!("wv version: {} -> {:?} {:?} {}", bin.display(), out.status.code(), text, String::from_utf8_lossy(&out.stderr).trim()));
         if out.status.success() && text.split('.').count() == 3 && text.chars().all(|c| c.is_ascii_digit() || c == '.') { Some(text) } else { Some("0.0.0".into()) }
     })
     .await
@@ -1314,6 +1323,7 @@ pub fn run() {
             wv_json,
             wv_binary_path,
             wv_version,
+            frontend_log,
             launch_hints,
             open_web_window,
             open_external,

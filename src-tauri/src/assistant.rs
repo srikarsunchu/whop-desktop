@@ -56,15 +56,19 @@ fn shim_run(args: &[String]) -> i32 {
         return 1;
     }
 
-    // Demo business: answer from the fixtures file the app wrote.
-    if let Ok(file) = std::env::var(DEMO_FILE_ENV) {
-        return shim_demo(&file, args);
-    }
-    // The gate: wv answers a read with whop's bytes and a write with a plan and a rerun (exit 2).
+    // The gate: wv answers a read with whop's bytes and a write with a plan and a rerun (exit 2). On the demo
+    // business wv's `whop` is this binary again, answering from the fixtures, so the demo shows the same cards.
     if let Ok(wv) = std::env::var(WV_ENV) {
-        let real = std::env::var(REAL_WHOP_ENV).unwrap_or_else(|_| "whop".into());
         let mut cmd = Command::new(wv);
-        cmd.args(wv_argv(args)).env("WV_WHOP_BIN", real).env_remove(SHIM_ENV).env_remove(WV_ENV).stdin(Stdio::null());
+        cmd.args(wv_argv(args)).env_remove(WV_ENV).stdin(Stdio::null());
+        match (std::env::var(DEMO_FILE_ENV).is_ok(), std::env::current_exe()) {
+            (true, Ok(exe)) => {
+                cmd.env("WV_WHOP_BIN", exe);
+            }
+            _ => {
+                cmd.env("WV_WHOP_BIN", std::env::var(REAL_WHOP_ENV).unwrap_or_else(|_| "whop".into())).env_remove(SHIM_ENV);
+            }
+        }
         return match cmd.status() {
             Ok(s) => s.code().unwrap_or(1),
             Err(e) => {
@@ -72,6 +76,10 @@ fn shim_run(args: &[String]) -> i32 {
                 127
             }
         };
+    }
+    // Demo business without wv: answer from the fixtures file the app wrote.
+    if let Ok(file) = std::env::var(DEMO_FILE_ENV) {
+        return shim_demo(&file, args);
     }
     if is_write(args) && std::env::var(ALLOW_WRITES_ENV).ok().as_deref() != Some("1") {
         let msg = serde_json::json!({
@@ -135,6 +143,14 @@ fn shim_demo(file: &str, args: &[String]) -> i32 {
     for k in keys {
         if let Some(v) = map.get(&k) {
             println!("{}", serde_json::to_string_pretty(v).unwrap());
+            return 0;
+        }
+    }
+    // `<group> get <id>` answers from the group's list, so a write's plan can say what changes.
+    if a(1) == "get" && !a(2).is_empty() {
+        let row = map.get(&format!("{} list", a(0))).and_then(|v| v.get("data")).and_then(|d| d.as_array()).and_then(|rows| rows.iter().find(|r| r.get("id").and_then(|i| i.as_str()) == Some(a(2).as_str())));
+        if let Some(row) = row {
+            println!("{}", serde_json::to_string_pretty(&serde_json::json!({"ok": true, "data": row})).unwrap());
             return 0;
         }
     }
@@ -284,7 +300,7 @@ You operate the business ONLY through the `whop` CLI via the Bash tool. Always a
 {reference} \
 Do not use any other tools, do not read or write files, do not pipe secrets, do not pipe through head/tail (the app truncates for you). \
 {writes} \
-Style: answer like a sharp operator, in short plain sentences; format money like $1,234.50; lead with the answer, then the evidence; suggest one next step when useful. Do not narrate tool calls; the app shows them."
+Style: answer like a sharp operator, in short plain sentences; format money like $1,234.50; lead with the answer, then the evidence; suggest one next step when useful. Do not narrate or announce tool calls, run them; the app shows them."
     )
 }
 
@@ -303,7 +319,7 @@ pub fn assistant_start(app: AppHandle, state: State<'_, AssistantState>, args: S
     let home = std::env::var("HOME").unwrap_or_default();
     let extra_path = format!("{path}:{home}/.local/bin:/opt/homebrew/bin:/usr/local/bin");
 
-    let gated = args.gated && !args.demo && crate::wv_binary_path_pub().is_some();
+    let gated = args.gated && crate::wv_binary_path_pub().is_some();
     let mut cmd = Command::new(&claude);
     cmd.arg("-p")
         .arg(&args.prompt)

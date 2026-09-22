@@ -21,9 +21,9 @@ export interface ToolCall {
   gateResult?: { approved: boolean; output?: string; code?: number };
 }
 
-/** Runs a plan's rerun through wv. The leading `wv` in the rerun is fine; the Rust side drops it. */
-export async function runRerun(rerun: string[]): Promise<{ stdout: string; stderr: string; code: number }> {
-  return invoke("wv_raw", { args: rerun });
+/** Runs a plan's rerun through wv. The leading `wv` in the rerun is fine; the Rust side drops it. On the demo business wv's `whop` is the app's fixtures shim. */
+export async function runRerun(rerun: string[], demo = false): Promise<{ stdout: string; stderr: string; code: number }> {
+  return invoke("wv_raw", { args: rerun, demo });
 }
 
 export async function wvAvailable(): Promise<string | null> {
@@ -40,6 +40,8 @@ export interface ChatMessage {
   blocks: Block[];
   createdAt: number;
   streaming?: boolean;
+  /** A message the app sent on the person's behalf (a plan's outcome): shown as a quiet line, not a bubble. */
+  quiet?: boolean;
   error?: string;
   meta?: {
     model?: string;

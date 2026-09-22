@@ -598,12 +598,17 @@ async fn whop_raw(args: Vec<String>) -> Result<RawOutput, String> {
 /// Runs `wv <args>` with stdout piped, so wv answers as it does on a pipe: whop's bytes for a read, a plan
 /// envelope (exit 2) for a write, and the write itself when `args` is the `rerun` a plan handed back. A leading
 /// `wv` in `args`, as the rerun carries it, is dropped. The real `whop` is passed in `WV_WHOP_BIN`.
-fn run_wv(args: &[String]) -> Result<RawOutput, String> {
+fn run_wv(app: &AppHandle, args: &[String], demo: bool) -> Result<RawOutput, String> {
     let bin = wv_binary().ok_or_else(|| {
         "wv not found. Install it from github.com/srikarsunchu/whop-view (Node 22.6+), then relaunch.".to_string()
     })?;
-    let whop = whop_binary().ok_or_else(|| "Whop CLI not found.".to_string())?;
     let args: &[String] = if args.first().map(String::as_str) == Some("wv") { &args[1..] } else { args };
+    // On the demo business wv's `whop` is this binary in shim mode, answering from the fixtures.
+    let (whop, demo_file) = if demo {
+        (std::env::current_exe().map_err(|e| e.to_string())?, Some(config_dir(app).ok_or("no config dir")?.join("demo.json")))
+    } else {
+        (whop_binary().ok_or_else(|| "Whop CLI not found.".to_string())?, None)
+    };
     let home = std::env::var("HOME").unwrap_or_default();
     let extra = format!(
         "{home}/.local/bin:/opt/homebrew/bin:/usr/local/bin:{}",
@@ -615,6 +620,7 @@ fn run_wv(args: &[String]) -> Result<RawOutput, String> {
         .env("WV_WHOP_BIN", &whop)
         .env("NO_COLOR", "1")
         .env("CI", "1")
+        .envs(demo_file.iter().flat_map(|f| [(assistant::SHIM_ENV, std::ffi::OsString::from("1")), ("WHOP_DESKTOP_DEMO_FILE", f.as_os_str().to_os_string())]))
         .stdin(std::process::Stdio::null())
         .output()
         .map_err(|e| format!("failed to run wv: {e}"))?;
@@ -666,8 +672,8 @@ async fn wv_json(app: AppHandle, args: Vec<String>, demo: bool) -> Result<serde_
 }
 
 #[tauri::command]
-async fn wv_raw(args: Vec<String>) -> Result<RawOutput, String> {
-    tauri::async_runtime::spawn_blocking(move || run_wv(&args))
+async fn wv_raw(app: AppHandle, args: Vec<String>, demo: Option<bool>) -> Result<RawOutput, String> {
+    tauri::async_runtime::spawn_blocking(move || run_wv(&app, &args, demo.unwrap_or(false)))
         .await.map_err(|e| format!("CLI task failed: {e}"))?
 }
 

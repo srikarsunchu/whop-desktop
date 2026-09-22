@@ -229,17 +229,17 @@ export function Assistant({
           b.type === "tool" && b.call.id === callId ? { type: "tool", call: { ...b.call, gateResult: { approved, output, code } } } : b,
         ),
       }));
-      const summary = approved
-        ? `I approved the plan in the app and it ran. Result: ${(output ?? "").slice(0, 4000)}`
-        : "I declined the plan in the app; nothing ran. Do not retry it.";
-      void sendRef.current?.(summary);
+      if (approved) void sendRef.current?.(`I approved the plan in the app and it ran. Result: ${(output ?? "").slice(0, 4000)}`, code === 0 ? "Approved. It ran, and Claude has the result." : "Approved, but it did not complete. Claude has the output.");
+      else pendingNotes.current.push("I declined the last plan in the app; nothing ran. Do not retry it unless I ask again.");
     },
     [update],
   );
-  const sendRef = useRef<((text: string) => Promise<void>) | null>(null);
+  const sendRef = useRef<((text: string, quiet?: string) => Promise<void>) | null>(null);
+  /** What Claude has not heard yet (a declined plan), sent ahead of the next message instead of as its own turn. */
+  const pendingNotes = useRef<string[]>([]);
 
   const send = useCallback(
-    async (text: string) => {
+    async (text: string, quiet?: string) => {
       const prompt = text.trim();
       if (
         prompt &&
@@ -263,11 +263,14 @@ export function Assistant({
       stoppedRef.current = false;
       followRef.current = true;
       setInput("");
+      const notes = pendingNotes.current.splice(0);
+      const wire = notes.length ? `(${notes.join(" ")})\n\n${prompt}` : prompt;
       const userMsg: ChatMessage = {
         id: uid(),
         role: "user",
-        blocks: [{ type: "text", text: prompt }],
+        blocks: [{ type: "text", text: quiet ?? prompt }],
         createdAt: Date.now(),
+        quiet: !!quiet,
       };
       const asstId = uid();
       const asst: ChatMessage = {
@@ -307,8 +310,8 @@ export function Assistant({
           {
             prompt: (() => {
               const creatives = loadGenerations().filter(g=>g.accountId===account.id && g.conversationId===activeId);
-              if (!creatives.length) return prompt;
-              return `${prompt}\n\nSaved creative context for this conversation (metadata only; do not claim to see the pixels): ${JSON.stringify(creatives.slice(-6).map(g=>({id:g.id,parentId:g.parentId,status:g.status,sample:g.sample,instruction:g.instruction,product:g.context?.productTitle,adDraftId:g.adDraftId})))}. Images and revisions must be created through Create image in the composer, which provides review and saved previews.`;
+              if (!creatives.length) return wire;
+              return `${wire}\n\nSaved creative context for this conversation (metadata only; do not claim to see the pixels): ${JSON.stringify(creatives.slice(-6).map(g=>({id:g.id,parentId:g.parentId,status:g.status,sample:g.sample,instruction:g.instruction,product:g.context?.productTitle,adDraftId:g.adDraftId})))}. Images and revisions must be created through Create image in the composer, which provides review and saved previews.`;
             })(),
             sessionId: conv.sessionId,
             accountId: account?.id,
@@ -316,7 +319,7 @@ export function Assistant({
             demo: !!account?.demo,
             allowWrites,
             model,
-            gated: !!wvPath && !account?.demo,
+            gated: !!wvPath,
           },
           {
             onSession: (sid) => {
@@ -928,6 +931,15 @@ function Message({
   /** The person answered a plan card on one of this message's tool calls. */
   onGate?: (messageId: string, callId: string, approved: boolean, output?: string, code?: number) => void;
 }) {
+  if (m.role === "user" && m.quiet) {
+    return (
+      <div className="msg msg-quiet">
+        <Text size="1" color="gray">
+          {m.blocks.map((b) => (b.type === "text" ? b.text : "")).join("")}
+        </Text>
+      </div>
+    );
+  }
   if (m.role === "user") {
     return (
       <div className="msg msg-user">
@@ -1046,6 +1058,7 @@ function ToolCard({
   onGate?: (approved: boolean, output?: string, code?: number) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const { account } = useAccount();
   const destination = toolDestination(call.command);
   const activity =
     call.description ||
@@ -1070,8 +1083,9 @@ function ToolCard({
     <div
       className="tool"
       data-running={!call.done}
-      data-error={!!call.isError && !blocked}
+      data-error={!!call.isError && !blocked && call.gate?.kind !== "plan" && call.gate?.kind !== "stale"}
       data-blocked={blocked}
+      data-gate={call.gate?.kind}
     >
       <div className="tool-head">
         <button
@@ -1100,6 +1114,10 @@ function ToolCard({
             <Badge size="1" color="amber" variant="soft">
               blocked
             </Badge>
+          ) : call.gate ? (
+            <Badge size="1" color={call.gate.kind === "plan" ? "amber" : call.gate.kind === "refused" ? "red" : "gray"} variant="soft">
+              {call.gate.kind === "plan" ? (call.gateResult ? (call.gateResult.approved ? "ran" : "declined") : "plan") : call.gate.kind === "refused" ? "refused" : "expired"}
+            </Badge>
           ) : call.isError ? (
             <Badge size="1" color="red" variant="soft">
               error
@@ -1127,8 +1145,9 @@ function ToolCard({
         <PlanCard
           gate={call.gate}
           result={call.gateResult}
+          demo={!!account?.demo}
           onApprove={async () => {
-            const r = await runRerun(call.gate!.rerun ?? []);
+            const r = await runRerun(call.gate!.rerun ?? [], !!account?.demo);
             onGate?.(true, r.stdout || r.stderr, r.code);
           }}
           onDecline={() => onGate?.(false)}

@@ -495,8 +495,9 @@ export function ActionEditor({
             {gate && (
               <PlanCard
                 gate={gate}
+                demo={!!account?.demo}
                 onApprove={async () => {
-                  const out = await runRerun(gate.rerun ?? []);
+                  const out = await runRerun(gate.rerun ?? [], !!account?.demo);
                   const r = rerunOutcome(out.stdout, out.code);
                   if (!r.ok) {
                     setGate(null);

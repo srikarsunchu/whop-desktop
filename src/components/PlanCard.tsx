@@ -42,14 +42,16 @@ export function planRows(plan: Rec | undefined): [string, string][] {
   if (l) rows.push(["Whop's limit", str(l.code) ? `blocked · ${str(l.message) ?? l.code}` : `${money(num(l.max), str(b?.currency) ?? "usd")} per ${str(l.speed) ?? "standard"} payout`]);
   if (num(plan.cap) !== undefined) rows.push(["wv cap", money(num(plan.cap), str(b?.currency) ?? "usd")]);
   else if (plan.cap === null) rows.push(["wv cap", "off"]);
-  if (isObj(plan.changes)) for (const [k, v] of Object.entries(plan.changes)) rows.push([k, isObj(v) ? `${String(v.before ?? "—")} → ${String(v.after ?? "—")}` : String(v)]);
+  const show = (v: unknown) => (v === undefined || v === null || v === "" ? "—" : isObj(v) || Array.isArray(v) ? JSON.stringify(v) : String(v));
+  if (Array.isArray(plan.changes)) for (const c of plan.changes as Rec[]) if (isObj(c) && str(c.key) && c.changed !== false) rows.push([String(c.key), `${show(c.before)} → ${show(c.after)}`]);
+  else if (isObj(plan.changes)) for (const [k, v] of Object.entries(plan.changes)) rows.push([k, isObj(v) ? `${show(v.before)} → ${show(v.after)}` : show(v)]);
   if (isObj(plan.quote) && num((plan.quote as Rec).rate) !== undefined) rows.push(["rate", `${num((plan.quote as Rec).rate)} · fee ${num((plan.quote as Rec).feeBps) ?? 0} bps`]);
   if (isObj(plan.after)) rows.push(["after", Object.entries(plan.after as Rec).map(([k, v]) => `${k} ${v === undefined || v === null ? "unknown" : String(v)}`).join(" · ")]);
   if (acct && (str(acct.title) || str(acct.id))) rows.push(["from", [str(acct.title), str(acct.id)].filter(Boolean).join("  ")]);
   return rows;
 }
 
-export function PlanCard({ gate, result, onApprove, onDecline }: { gate: Gate; result?: { approved: boolean; output?: string; code?: number }; onApprove: () => Promise<void>; onDecline: () => void }) {
+export function PlanCard({ gate, result, demo, onApprove, onDecline }: { gate: Gate; result?: { approved: boolean; output?: string; code?: number }; demo?: boolean; onApprove: () => Promise<void>; onDecline: () => void }) {
   const plan = gate.plan;
   const typed = gate.kind === "plan" ? typedAmountOf(plan) : undefined;
   const [entered, setEntered] = useState("");
@@ -67,8 +69,8 @@ export function PlanCard({ gate, result, onApprove, onDecline }: { gate: Gate; r
         <Text size="2" weight="medium">
           {gate.kind === "plan" ? "Plan" : gate.kind === "stale" ? "Approval expired" : "Refused"}
         </Text>
-        <Badge size="1" color={mode === "sandbox" ? "green" : "amber"} variant="soft">
-          {mode === "sandbox" ? "sandbox" : "writes to production"}
+        <Badge size="1" color={demo || mode === "sandbox" ? "green" : "amber"} variant="soft">
+          {demo ? "demo · nothing real changes" : mode === "sandbox" ? "sandbox" : "writes to production"}
         </Badge>
       </div>
       {rows.length > 0 && (
@@ -137,11 +139,6 @@ export function PlanCard({ gate, result, onApprove, onDecline }: { gate: Gate; r
           <Button size="1" variant="soft" color="gray" disabled={running} onClick={onDecline}>
             Decline
           </Button>
-          {gate.hint && (
-            <Text size="0" color="gray">
-              {gate.hint}
-            </Text>
-          )}
         </div>
       )}
       {result && (

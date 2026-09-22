@@ -58,7 +58,7 @@ Every screen is a `whop …` command with a face.
 
 The `whop` that Claude sees is not the real binary. It is Whop Desktop itself running as a shim that:
 
-- **gates every write** through [wv](https://github.com/srikarsunchu/whop-view) when it is installed, in the chat and in every action dialog (withdraw, price, publish, cancel): the write comes back as a plan with a signed rerun, the chat shows it as a card with Approve and Decline, and money asks for the amount typed back; without wv it **blocks every write** (create, update, delete, cancel, payouts, deploy, …) unless the "Allow writes" switch is on, returning a `WRITE_BLOCKED` result Claude relays to you;
+- **gates every write** through [wv](https://github.com/srikarsunchu/whop-view) when it is installed, in the chat and in every action dialog (withdraw, price, publish, cancel), on the demo business too: the write comes back as a plan with before → after and a signed rerun, the chat shows it as a card with Approve and Decline, money asks for the amount typed back, a decline costs no turn, and the outcome reaches Claude as a quiet line; without wv it **blocks every write** (create, update, delete, cancel, payouts, deploy, …) unless the "Allow writes" switch is on, returning a `WRITE_BLOCKED` result Claude relays to you;
 - **serves the demo business** from fixtures the app writes, so the demo works end to end without touching a real account;
 - passes reads straight through to the real CLI.
 

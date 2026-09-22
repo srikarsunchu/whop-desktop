@@ -52,5 +52,7 @@ if(typedAmountOf){
  assert.equal(typedAmountOf({kind:'write',changes:{title:{before:'a',after:'b'}}}),undefined);
  const rows=Object.fromEntries(planRows(plan.plan));
  assert.equal(rows.amount,'$5.00');assert.match(rows["Whop's limit"],/^blocked · Please complete/);assert.equal(rows['wv cap'],'$500.00');
+ const changed=Object.fromEntries(planRows({kind:'write',command:'whop products update prod_x --title "Frame Pro"',changes:[{key:'title',before:'Frame',after:'Frame Pro',changed:true},{key:'visibility',before:'visible',after:'visible',changed:false}]}));
+ assert.equal(changed.title,'Frame → Frame Pro');assert.equal(changed.visibility,undefined,'an unchanged field is not a row');
 }
 console.log('Gate checks passed: plan, refusal, blocked recipe, stale approval, reads, the fallback block, typed amount, plan rows.');

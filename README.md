@@ -24,7 +24,11 @@ Site, demo and install guide: [srikar-desktop.whop.site](https://srikar-desktop.
 
 ## Demos
 
-Four short recordings, all on the Northwind Picks demo business, cut for time. Click a frame to play.
+[![The gate in chat, then Support](docs/media/gate-and-support.jpg)](docs/media/gate-and-support.mp4)
+
+**The gate**, 45s, 4K. Ask the assistant to rename a product: the write comes back as a plan with before → after, and nothing runs until you press Approve. Then Support: one customer from an email, Extend as a plan with the period end before and after, Approve. Recorded on the Northwind Picks demo business in presentation mode, which hides the demo labels; every card, badge, and reply is what the app says on a real business.
+
+Four more, cut for time. Click a frame to play.
 
 | | |
 |---|---|
@@ -32,8 +36,6 @@ Four short recordings, all on the Northwind Picks demo business, cut for time. C
 | **Product demo**, 17s. Ask a question, watch the command run, read the answer. Also on the [site](https://srikar-desktop.whop.site/). | **Tour**, 48s. Assistant, Overview, Studio and Ads in one sitting. |
 | [![Creative workflow](docs/media/creative-workflow.jpg)](docs/media/creative-workflow.mp4) | [![Curfew fraud dashboard](docs/media/curfew.jpg)](docs/media/curfew.mp4) |
 | **Creative workflow**, 27s. Ask for an ad in chat, finish it in Studio, save it as an ad draft. | **Curfew**, 23s. A card-testing attack showing up in the fraud dashboard. |
-| [![The gate in chat](docs/media/gate.jpg)](docs/media/gate.mp4) | [![Support](docs/media/support.jpg)](docs/media/support.mp4) |
-| **The gate**, 24s. Ask for a rename; the write comes back as a plan with before → after; Approve runs it; Claude confirms. | **Support**, 22s. One customer from an email; Extend shows the period end before and after as a plan; Approve. |
 
 ## What it does
 

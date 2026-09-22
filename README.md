@@ -33,7 +33,7 @@ Four short recordings, all on the Northwind Picks demo business, cut for time. C
 | [![Creative workflow](docs/media/creative-workflow.jpg)](docs/media/creative-workflow.mp4) | [![Curfew fraud dashboard](docs/media/curfew.jpg)](docs/media/curfew.mp4) |
 | **Creative workflow**, 27s. Ask for an ad in chat, finish it in Studio, save it as an ad draft. | **Curfew**, 23s. A card-testing attack showing up in the fraud dashboard. |
 | [![The gate in chat](docs/media/gate.jpg)](docs/media/gate.mp4) | [![Support](docs/media/support.jpg)](docs/media/support.mp4) |
-| **The gate**, 28s. Ask for a rename; the write comes back as a plan with before → after; Approve runs it; Claude confirms. On the demo business. | **Support**, 30s. One customer from an email; Extend shows the period end before and after as a plan; Approve. |
+| **The gate**, 24s. Ask for a rename; the write comes back as a plan with before → after; Approve runs it; Claude confirms. | **Support**, 22s. One customer from an email; Extend shows the period end before and after as a plan; Approve. |
 
 ## What it does
 

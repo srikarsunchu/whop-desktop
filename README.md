@@ -159,7 +159,7 @@ WHOP_DESKTOP_ACCOUNT=biz_demoNorthwind WHOP_DESKTOP_VIEW=overview \
   `remote` allowlist). The only thing injected there is `src-tauri/js/init.js`,
   an app-authored script for CSS tweaks and the Google passkey fix.
 - Debug logs record command names only, never arguments or output.
-- The assistant's Claude process gets only `Bash(whop:*)`; file, web and sub-agent tools are disallowed, and `whop` resolves to the gated shim above.
+- The assistant's Claude process gets Bash as its only tool (`--tools Bash`, allowlisted to `whop …` and, with wv installed, `wv …`), none of your own MCP servers or settings (`--strict-mcp-config --setting-sources project`), and `whop` resolves to the gated shim above.
 
 ## Known limitations
 

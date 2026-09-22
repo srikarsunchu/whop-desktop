@@ -249,7 +249,7 @@ export function buildDemoFixtures(): Record<string, unknown> {
       ["ledgers", "report", "--report_type", "balance_summary"],
     ],
     ["payouts list"],
-    ["payouts methods"],
+    ["payouts methods", ["payouts", "methods", "--include_limits"]],
     ["plans list"],
     ["accounts reserves"],
     ["verifications list"],

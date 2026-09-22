@@ -146,13 +146,19 @@ export function businessDemo(
   }
   if (group === "payouts" && verb === "methods") {
     const amount = Number(flag(args, "amount") ?? 0);
-    return {
+    const result = {
       handled: true,
       value: page(
         [
           {
             id: "potk_demo_chase",
             name: "Chase ••4417",
+            // The CLI's own field names beside the app's, so wv's money screen reads the same method.
+            nickname: "Chase checking",
+            institution_name: "JPMorgan Chase",
+            account_reference: "••••4417",
+            currency: "usd",
+            is_default: true,
             status: "active",
             destination: "Chase ••4417",
             ...(amount
@@ -171,6 +177,10 @@ export function businessDemo(
         args,
       ),
     };
+    // `--include_limits` adds the limits sibling: payouts allowed on the demo, up to $5,000 per standard payout.
+    if (args.includes("--include_limits") && (result.value as Record<string, unknown>))
+      (result.value as Record<string, unknown>).limits = { object: "payout_limit", currency: "usd", standard: { max_amount: 5000, daily_amount_remaining: 5000 }, instant: { max_amount: 250, daily_amount_remaining: 250 } };
+    return result;
   }
   if (group === "apps" && verb === "builds") {
     if (id === "list") {

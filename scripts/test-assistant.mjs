@@ -35,6 +35,8 @@ const plan=parseGate(JSON.stringify({ok:false,error:{code:'CONFIRMATION_REQUIRED
 assert.equal(plan.kind,'plan');assert.equal(plan.code,'CONFIRMATION_REQUIRED');assert.deepEqual(plan.rerun.slice(0,3),['wv','payouts','create']);assert.equal(plan.plan.money.amount,5);
 const refused=parseGate(JSON.stringify({ok:false,error:{code:'WHOP_LIMIT',message:'Please complete identity verification before requesting a withdrawal.'},plan:{kind:'write',money:{amount:5,currency:'usd'}}}));
 assert.equal(refused.kind,'refused');assert.equal(refused.rerun,undefined);
+const prefixed=parseGate('Exit code 2\n'+JSON.stringify({ok:false,error:{code:'CONFIRMATION_REQUIRED',message:'plan'},plan:{kind:'write'},rerun:['wv','products','update','prod_x','--approve','1']}));
+assert.equal(prefixed.kind,'plan');assert.deepEqual(prefixed.rerun.slice(0,2),['wv','products']);
 const blocked=parseGate(JSON.stringify({ok:false,error:{code:'SWAP_BLOCKED',message:'blocked'},plan:{kind:'swap',blockers:['€80.00 is more than the €12.50 available.']}}));
 assert.equal(blocked.kind,'refused');
 const stale=parseGate(JSON.stringify({ok:false,error:{code:'APPROVAL_EXPIRED',message:'The approval expired.'},plan:{}}));

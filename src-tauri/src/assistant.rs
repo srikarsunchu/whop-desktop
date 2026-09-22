@@ -311,26 +311,18 @@ pub fn assistant_start(app: AppHandle, state: State<'_, AssistantState>, args: S
         .arg("stream-json")
         .arg("--verbose")
         .arg("--include-partial-messages")
+        // Only the built-in Bash tool exists in this run: no Read/Edit/Web*/Task to be offered and refused.
+        .arg("--tools")
+        .arg("Bash")
         .arg("--allowedTools")
         .arg("Bash(whop:*)")
-        // With the gate on, `wv …` is allowed too: the installed wv skills tell the model to type it, and every
-        // write through it comes back as a plan. Its `whop` is the real binary, so it never re-enters the shim.
+        // With the gate on, `wv …` is allowed too: every write through it comes back as a plan. Its `whop` is
+        // the real binary, so it never re-enters the shim.
         .args(if gated { vec!["Bash(wv:*)"] } else { vec![] })
-        .arg("--disallowedTools")
-        .arg("Read")
-        .arg("Edit")
-        .arg("Write")
-        .arg("Glob")
-        .arg("Grep")
-        .arg("WebFetch")
-        .arg("WebSearch")
-        .arg("Task")
-        .arg("NotebookEdit")
-        // No MCP servers from the user's own Claude config: a wv or whop MCP plugin there would be offered to
-        // the model and refused by the allowlist, and the run would stall on it instead of using `whop`.
+        // `--tools` only trims the built-in set: the person's own MCP servers and settings-installed plugins
+        // still load without these two, and a `whop` or `wv` MCP tool offered to the model is refused by the
+        // allowlist and stalls the run instead of typing the command.
         .arg("--strict-mcp-config")
-        // And no user-level settings: a plugin's MCP server or a skill installed for the person's own terminal
-        // would be offered to the model here and refused by the allowlist. The prompt carries what it needs.
         .arg("--setting-sources")
         .arg("project")
         .arg("--permission-mode")

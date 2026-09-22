@@ -21,7 +21,9 @@ const REFUSALS = /^(WHOP_LIMIT|WV_CAP|INSUFFICIENT_BALANCE|WV_AD_CAP|[A-Z_]+_BLO
 /** Reads wv's envelope out of a tool result. Anything that is not the gate returns undefined. */
 export function parseGate(output: string | undefined): Gate | undefined {
   if (!output) return undefined;
-  const text = output.trim();
+  // The Bash tool prefixes a failed command's output with an "Exit code N" line, and wv exits 2 on a plan
+  // or a refusal, so the envelope starts at the first brace, not the first character.
+  const text = output.trim().replace(/^Exit code \d+\s*/, "");
   if (!text.startsWith("{")) return undefined;
   let env: any;
   try {

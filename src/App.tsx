@@ -19,6 +19,7 @@ import { Members } from "./views/Members";
 import { Products } from "./views/Products";
 import { People } from "./views/People";
 import { Curfew } from "./views/Curfew";
+import { Support } from "./views/Support";
 import { Apps } from "./views/Apps";
 import { Assistant } from "./views/Assistant";
 import { Ads } from "./views/Ads";
@@ -292,7 +293,18 @@ export function App() {
       page = <Studio onOpenAds={() => setView("ads")} />;
       break;
     case "curfew":
-      page = <Curfew key={account?.id} />;
+      page = (
+        <Curfew
+          key={account?.id}
+          onSupport={(key) => {
+            sessionStorage.setItem(`workspace.${account?.id}.support.key`, JSON.stringify(key));
+            setView("support");
+          }}
+        />
+      );
+      break;
+    case "support":
+      page = <Support runInTerminal={runInTerminal} />;
       break;
     case "apps":
       page = <Apps runInTerminal={runInTerminal} ask={ask} />;
@@ -333,6 +345,7 @@ export function App() {
           view={view}
           onNavigate={setView}
           onOpenPalette={() => setPaletteOpen(true)}
+          runInTerminal={runInTerminal}
         />
         <main
           className={`content${view === "assistant" ? " content-assistant" : ""}`}

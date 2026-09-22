@@ -110,6 +110,43 @@ pub fn wv_argv(args: &[String]) -> &[String] {
     if args.first().map(String::as_str) == Some("wv") { &args[1..] } else { args }
 }
 
+/// The row filters the CLI takes and wv's screens send (`--user_id`, `--user_ids`, `--email`, `--payment_id`,
+/// `--product_id`, `--query`), applied to a fixture page so a support lookup on the demo resolves like a real one.
+fn narrow(v: serde_json::Value, args: &[String]) -> serde_json::Value {
+    let flag = |name: &str| args.iter().position(|x| x == name).and_then(|i| args.get(i + 1)).cloned();
+    let filters: Vec<(&str, String)> = [("--user_id", "user"), ("--user_ids", "user"), ("--email", "email"), ("--payment_id", "payment"), ("--product_id", "product"), ("--query", "query")]
+        .iter()
+        .filter_map(|(f, kind)| flag(f).map(|v| (*kind, v)))
+        .collect();
+    if filters.is_empty() {
+        return v;
+    }
+    let Some(rows) = v.get("data").and_then(|d| d.as_array()) else { return v };
+    let get = |r: &serde_json::Value, path: &[&str]| -> Option<String> {
+        let mut cur = r;
+        for p in path {
+            cur = cur.get(p)?;
+        }
+        cur.as_str().map(str::to_string)
+    };
+    let keep: Vec<serde_json::Value> = rows
+        .iter()
+        .filter(|r| {
+            filters.iter().all(|(kind, val)| match *kind {
+                "user" => get(r, &["user_id"]).as_deref() == Some(val) || get(r, &["user", "id"]).as_deref() == Some(val),
+                "email" => get(r, &["email"]).as_deref() == Some(val) || get(r, &["user", "email"]).as_deref() == Some(val),
+                "payment" => get(r, &["payment_id"]).as_deref() == Some(val) || get(r, &["payment", "id"]).as_deref() == Some(val) || get(r, &["id"]).as_deref() == Some(val),
+                "product" => get(r, &["product_id"]).as_deref() == Some(val) || get(r, &["product", "id"]).as_deref() == Some(val),
+                _ => r.to_string().to_lowercase().contains(&val.to_lowercase()),
+            })
+        })
+        .cloned()
+        .collect();
+    let mut out = v.clone();
+    out["data"] = serde_json::Value::Array(keep);
+    out
+}
+
 fn shim_demo(file: &str, args: &[String]) -> i32 {
     let text = match fs::read_to_string(file) {
         Ok(t) => t,
@@ -142,7 +179,7 @@ fn shim_demo(file: &str, args: &[String]) -> i32 {
     }
     for k in keys {
         if let Some(v) = map.get(&k) {
-            println!("{}", serde_json::to_string_pretty(v).unwrap());
+            println!("{}", serde_json::to_string_pretty(&narrow(v.clone(), args)).unwrap());
             return 0;
         }
     }

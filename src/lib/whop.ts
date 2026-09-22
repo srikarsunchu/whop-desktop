@@ -394,6 +394,38 @@ export interface WvSetup {
   blocking: number;
 }
 
+export interface WvDoctorCheck {
+  key: string;
+  label: string;
+  level: "ok" | "warn" | "fail";
+  detail: string;
+  fix?: string[];
+  dashboard?: string;
+  blocking: boolean;
+}
+export interface WvDoctor {
+  ok: boolean;
+  blocking: string[];
+  checks: WvDoctorCheck[];
+  account?: { id?: string; title?: string };
+  dashboard?: string;
+}
+/** `wv support lookup <key>`: one customer joined from every read a ticket needs. Sections carry `{error}` when a read failed. */
+type SupportRow = { id: string; [key: string]: any };
+export interface WvSupport {
+  ok: boolean;
+  key: string;
+  kind: string;
+  user?: { id: string; name?: string; username?: string; email?: string };
+  person?: { id?: string; ltv?: number; purchase_count?: number; first_seen_at?: string; last_seen_at?: string };
+  member?: { id?: string; status?: string; joined_at?: string; last_accessed_at?: string };
+  memberships: SupportRow[] | { error: string };
+  payments: SupportRow[] | { error: string };
+  disputes: SupportRow[] | { error: string };
+  cases: SupportRow[] | { error: string };
+  actions: { what: string; run: string[] }[];
+}
+
 /** Drops every cached result (after a write action). */
 export function invalidateAll() {
   dataRevision++;

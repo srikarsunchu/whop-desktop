@@ -21,6 +21,7 @@ import {
   EyeOpenIcon,
   GearIcon,
   HomeIcon,
+  IdCardIcon,
   MagnifyingGlassIcon,
   OpenInNewWindowIcon,
   PersonIcon,
@@ -28,6 +29,7 @@ import {
 } from "@radix-ui/react-icons";
 import { invoke } from "@tauri-apps/api/core";
 import { useAccount } from "../lib/whop";
+import { DoctorStrip } from "./DoctorStrip";
 
 export type ViewId =
   | "overview"
@@ -35,6 +37,7 @@ export type ViewId =
   | "members"
   | "products"
   | "people"
+  | "support"
   | "ads"
   | "studio"
   | "apps"
@@ -54,6 +57,7 @@ export const NAV: {
   { id: "members", label: "Members", icon: PersonIcon },
   { id: "products", label: "Products", icon: CubeIcon },
   { id: "people", label: "People", icon: EyeOpenIcon },
+  { id: "support", label: "Support", icon: IdCardIcon },
   { id: "ads", label: "Ads", icon: MagicWandIcon },
   { id: "studio", label: "Studio", icon: ImageIcon },
   { id: "apps", label: "Apps", icon: RocketIcon },
@@ -67,10 +71,12 @@ export function Sidebar({
   view,
   onNavigate,
   onOpenPalette,
+  runInTerminal,
 }: {
   view: ViewId;
   onNavigate: (v: ViewId) => void;
   onOpenPalette: () => void;
+  runInTerminal?: (command: string) => void;
 }) {
   const { account, accounts, setAccount, cliVersion, loggedIn, cliPath } =
     useAccount();
@@ -216,7 +222,7 @@ export function Sidebar({
         {[
           {
             label: "Business",
-            ids: ["overview", "money", "members", "products", "people", "curfew"],
+            ids: ["overview", "money", "members", "products", "people", "support", "curfew"],
           },
           { label: "Grow", ids: ["ads", "studio", "growth"] },
           { label: "Build", ids: ["apps"] },
@@ -261,6 +267,7 @@ export function Sidebar({
           <GearIcon />
           Account
         </button>
+        <DoctorStrip runInTerminal={runInTerminal} onNavigate={onNavigate} />
         <Text
           size="1"
           color="gray"

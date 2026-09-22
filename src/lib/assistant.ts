@@ -215,6 +215,8 @@ export function buildDemoFixtures(): Record<string, unknown> {
   const keys = [
     ["products list"],
     ["memberships list"],
+    ["payments list"],
+    ["resolution-center-cases list"],
     [
       "memberships list --status active",
       ["memberships", "list", "--status", "active"],

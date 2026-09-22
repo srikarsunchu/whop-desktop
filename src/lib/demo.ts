@@ -105,6 +105,52 @@ function memberships() {
   });
 }
 
+/** One paid payment per membership that has paid, so a support lookup by email, user, or payment id resolves. */
+function payments() {
+  return memberships()
+    .filter((m) => !["trialing", "expired"].includes(m.status))
+    .map((m, i) => ({
+      id: `pay_Nw${m.user.id.slice(5, 11)}`,
+      status: "paid",
+      substatus: "succeeded",
+      billing_reason: m.plan.plan_type === "renewal" ? "subscription_cycle" : "one_time",
+      refundable: true,
+      retryable: false,
+      voidable: false,
+      account_id: DEMO_ACCOUNT_ID,
+      user: m.user,
+      member_id: m.member.id,
+      membership_id: m.id,
+      plan_id: m.plan.id,
+      product_id: m.product.id,
+      currency: "usd",
+      total: m.plan.plan_type === "renewal" ? m.plan.renewal_price : m.plan.initial_price,
+      presentment_total: m.plan.plan_type === "renewal" ? m.plan.renewal_price : m.plan.initial_price,
+      refunded_amount: usd(0),
+      created_at: iso((2 + i * 9) * DAY),
+    }));
+}
+
+/** The demo's paid payments as Curfew's sample feed reuses them, so "Open in Support" resolves on Northwind. */
+export function demoPaymentIds(): { id: string; name: string }[] {
+  return payments().map((p) => ({ id: p.id, name: String(p.user.name) }));
+}
+
+/** The row-level filters the CLI takes and a support lookup sends: `--user_id`, `--user_ids`, `--email`, `--payment_id`, `--query`. */
+function narrow<T extends Record<string, any>>(rows: T[], args: string[]): T[] {
+  const uid = flag(args, "--user_id") ?? flag(args, "--user_ids");
+  const email = flag(args, "--email");
+  const pay = flag(args, "--payment_id");
+  const q = flag(args, "--query")?.toLowerCase();
+  return rows.filter((r) => {
+    if (uid && !(r.user_id === uid || r.user?.id === uid)) return false;
+    if (email && !(r.email === email || r.user?.email === email)) return false;
+    if (pay && !(r.payment_id === pay || r.payment?.id === pay || r.id === pay)) return false;
+    if (q && !JSON.stringify(r).toLowerCase().includes(q)) return false;
+    return true;
+  });
+}
+
 function members() {
   return users.map(([uid, username, name], i) => ({
     id: `mber_Nw${uid.slice(5, 11)}`,
@@ -279,10 +325,18 @@ function demoSeed(args: string[]): any {
       return withPage(ledger());
     case "memberships list": {
       const st = flag(args, "--status");
-      return withPage(memberships().filter((m) => !st || m.status === st));
+      return withPage(narrow(memberships().filter((m) => !st || m.status === st), args));
     }
+    case "memberships get":
+      return { data: memberships().find((m) => m.id === args[2]) ?? memberships()[0] };
     case "members list":
-      return withPage(members());
+      return withPage(narrow(members(), args));
+    case "payments list":
+      return withPage(narrow(payments(), args));
+    case "payments get":
+      return { data: payments().find((p) => p.id === args[2]) ?? payments()[0] };
+    case "resolution-center-cases list":
+      return withPage([]);
     case "payouts list":
       return withPage(payouts());
     case "products list":
@@ -300,7 +354,7 @@ function demoSeed(args: string[]): any {
     case "verifications list":
       return withPage([{ id: "ver_NwVerified", status: "verified", last_error_code: null, last_error_reason: null }]);
     case "people list":
-      return withPage(people());
+      return withPage(narrow(people(), args));
     case "apps list":
       return withPage(apps);
     case "economic-intelligence list":
@@ -332,7 +386,7 @@ function demoSeed(args: string[]): any {
       return demoMedia(args[2]?.includes("_video_") ? "video" : "image", args[2], "");
     case "disputes list":
       return withPage([
-        { id: "dis_Nw1xQ", status: "needs_response", reason: "product_not_received", amount: usd(49), created_at: iso(1.2 * DAY), due_by: iso(-5 * DAY), user: { username: "benny_locks" } },
+        { id: "dsp_Nw1xQ", status: "needs_response", reason: "product_not_received", amount: usd(49), created_at: iso(1.2 * DAY), due_by: iso(-5 * DAY), evidence_due_at: iso(-5 * DAY), inquiry: false, payment_id: `pay_Nw${users[2][0].slice(5, 11)}`, user: { id: users[2][0], username: users[2][1] } },
       ]);
     case "accounts get":
       return { ...DEMO_ACCOUNT, business_type: "community", industry_type: "sports_betting", country: "us" };

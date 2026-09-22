@@ -420,10 +420,10 @@ export function ActionEditor({
     setError("");
     try {
       // Through wv when it is installed and the spec has no executor of its own: a write comes back as a plan first.
-      const viaWv = !spec.execute && !account.demo && !!(await wvPath());
+      const viaWv = !spec.execute && !!(await wvPath());
       let result: unknown;
       if (viaWv) {
-        const r = gatedResult(await runWvJson(review, false));
+        const r = gatedResult(await runWvJson(review, !!account.demo));
         if (r.kind === "gate") {
           setGate(r.gate);
           return;

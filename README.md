@@ -44,13 +44,16 @@ Every screen is a `whop …` command with a face.
 | **Members** | `memberships list` with status filters and row actions (pause, resume, cancel, all confirmed first), `members list` |
 | **Products** | `products list` with default plan price, member count, visibility; publish / unpublish / delete, open store page, list plans; with wv, a "from country" select prices every plan tax-included from `wv store --from CC` |
 | **People** | `people list`: location, device, events, purchases, LTV, last seen |
+| **Support** | with wv, one customer on one screen from `wv support lookup <email \| license \| user_ \| mem_ \| pay_>`: who they are, lifetime value, member status, then memberships (extend, pause, cancel), payments (refund), disputes (answer with evidence, deadline shown), and resolution-center cases (reply); every action is a plan you approve. Curfew's payment details open here |
 | **Ads** | Meta campaigns from `ad-campaigns list` with 30-day spend, impressions, clicks, results and cost per result; ad groups, ads, audiences, connected social accounts; pause / unpause / duplicate / delete, retry payment; "Plan a campaign with Claude" |
 | **Studio** | Reference-based image/video generation, editable typography and cropping, named creative history, and a local ad-draft handoff; live generation is billed from your Whop balance |
 | **Apps** | `apps list`, open the hosted domain, builds and logs, deploy preview, and **blueprints**: clone any whop.com/blueprints app with `apps init --template app_…` |
-| **Curfew** | Native fraud dashboard: payment activity, six detection signals, risk details, incident queue, launch mode, protection settings, and interactive demo scenarios |
+| **Curfew** | Native fraud dashboard: payment activity, six detection signals, risk details, incident queue, launch mode, protection settings, and interactive demo scenarios; a payment opens in Support, and a manual refund is a wv plan |
 | **Growth** | bounties (`bounties list`: pool, paid out, submissions; cancel), referred businesses and the partner leaderboard (`partners *`) |
 | **Assistant** | a Claude chat that operates the business through the CLI: every command it runs shows as a card with its output; a write comes back as a plan you approve on the card (through [wv](https://github.com/srikarsunchu/whop-view)), or stays blocked until you allow it when wv is not installed. **Raw CLI** mode is one toggle away: history (↑), ⌘L clear, JSON highlighting, copy and re-run |
 | **Account** | `auth status`, `auth list` (switch profiles), `accounts get`, `team-members list`, CLI binary and version; with wv, a **Setup** panel from `wv setup`: the first hour as numbered steps, who does each, and the fix runnable through the gate |
+
+With wv installed the sidebar footer carries **Doctor**: `wv doctor` runs when the business changes, the worst level shows as a dot and a line ("1 check blocks selling"), and clicking it lists every check that is not green with its fix: a wv write through the gate, a whop read in the terminal, or the dashboard page.
 
 ### The assistant
 

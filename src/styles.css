@@ -1442,3 +1442,26 @@ button:focus-visible, .chart:focus-visible { outline: 2px solid var(--accent-8);
 /* Next actions from a wv screen. */
 .next-items { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
 .next-items li { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 12px; }
+/* Doctor: wv's preflight in the sidebar footer, every failing check with its fix. */
+.doctor-strip { display: flex; align-items: center; gap: 6px; padding: 2px 10px 0; font-size: 11px; color: var(--gray-11); background: none; border: 0; cursor: pointer; text-align: left; width: 100%; }
+.doctor-strip:hover { color: var(--gray-12); }
+.doctor-dot { width: 6px; height: 6px; border-radius: 999px; background: var(--gray-8); flex: none; }
+.doctor-dot[data-level="ok"] { background: var(--success-9); }
+.doctor-dot[data-level="warn"] { background: var(--warning-9); }
+.doctor-dot[data-level="fail"] { background: var(--danger-9); }
+.doctor-checks { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; max-height: 60vh; overflow: auto; }
+.doctor-checks li { display: grid; gap: 3px; padding: 8px 10px; border: 1px solid var(--gray-a4); border-radius: 8px; font-size: 12px; }
+.doctor-checks li[data-level="fail"] { border-color: var(--red-a6); }
+.doctor-checks li[data-level="warn"] { border-color: var(--amber-a6); }
+.doctor-checks li p { margin: 0; }
+/* Support: one customer on one screen. */
+.support-search { display: flex; gap: 8px; align-items: center; max-width: 560px; }
+.support-search > :first-child { flex: 1; }
+.support-facts { display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px; font-size: 12px; margin: 0; }
+.support-facts dt { color: var(--gray-10); }
+.support-facts dd { margin: 0; }
+.support-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 16px; }
+.support-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.support-table th { text-align: left; font-weight: 500; color: var(--gray-10); padding: 4px 8px 6px 0; }
+.support-table td { padding: 5px 8px 5px 0; border-top: 1px solid var(--gray-a3); vertical-align: middle; }
+.support-table td:last-child { text-align: right; }

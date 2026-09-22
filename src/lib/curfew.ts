@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { demoPaymentIds } from "./demo";
 export interface Signal { name: string; value: number; threshold: number; fired: boolean; note: string }
 export interface Payment { id: string; status: string; created_at: string; usd_total: number; user_name: string | null; country: string | null; card_last4: string | null; refunded_at: string | null; risk?: number; insights?: string[] }
 export interface Incident { id: number; opened_at: string; level: string; score: number; signals: Signal[]; suspect_ids: string[]; status: "holding" | "acted" | "undone" | "alerted"; act_at: string; acted: {refunded: string[]; revoked: string[]; errors: string[]} | null }
@@ -27,10 +28,13 @@ export function makeDemo(scenario: "normal" | "attack" | "launch" = "normal"): C
     {name:"card_reuse",value:attack ? 6 : 0,threshold:1,fired:attack,note:attack ? "6 cards shared across 3+ accounts" : "No cards shared across multiple accounts"},
     {name:"spend_shift",value:.3,threshold:2.5,fired:false,note:"Average $49; usual $54"},
   ];
+  // The sample feed reuses Northwind's demo payments (ids and names), so a payment here opens in Support as that customer.
+  const known = demoPaymentIds();
   const recent: Payment[] = Array.from({length: attack ? 78 : launch ? 56 : 29}, (_, i) => {
     const burst = i >= 22 && (attack || launch);
     const failed = attack && burst && (i % 7 < 4);
-    return {id:`demo_pay_${i}`,status:failed ? "failed" : "paid",created_at:iso(burst ? (i - 22) / 6 : 57 - i * 2),usd_total:49,user_name:["Alex Morgan","Sam Rivera","Jordan Lee","Taylor Chen","Casey Brooks"][i%5],country:attack && burst ? ["NG","EG","VN"][i%3] : ["US","GB","CA"][i%3],card_last4:String(4210+i%7),refunded_at:null,risk:burst && attack ? 82+i%17 : 8+i%12,insights:burst && attack ? ["Card shared by 4 accounts", "First purchase from this account", "Arrived during a decline burst"] : ["Established buying pattern", "Country matches usual sales"]};
+    const who = known[i % known.length];
+    return {id:burst ? `demo_pay_${i}` : who.id,status:failed ? "failed" : "paid",created_at:iso(burst ? (i - 22) / 6 : 57 - i * 2),usd_total:49,user_name:burst ? ["Alex Morgan","Sam Rivera","Jordan Lee","Taylor Chen","Casey Brooks"][i%5] : who.name,country:attack && burst ? ["NG","EG","VN"][i%3] : ["US","GB","CA"][i%3],card_last4:String(4210+i%7),refunded_at:null,risk:burst && attack ? 82+i%17 : 8+i%12,insights:burst && attack ? ["Card shared by 4 accounts", "First purchase from this account", "Arrived during a decline burst"] : ["Established buying pattern", "Country matches usual sales"]};
   }).sort((a,b) => a.created_at.localeCompare(b.created_at));
   const suspects = recent.filter(p => p.status === "paid" && (p.risk ?? 0) > 80).map(p => p.id);
   return {tenant:{title:"Northwind Picks",account_id:"biz_demoNorthwind",webhook:true},baseline:{total_paid:1089,days:60,learned_at:iso(150),overall_rate:4,avg_usd:54},learn:{state:"done",fetched:1089},last:{at:iso(0),level:attack ? "attack" : launch ? "elevated" : "normal",score:signals.filter(s=>s.fired).length,signals,paid:recent.filter(p=>p.status==="paid" && +new Date(p.created_at)>=now-600000).length},scored:recent.slice(-60).reverse(),recent,incidents:attack ? [{id:1,opened_at:iso(1),level:"attack",score:5,signals,suspect_ids:suspects,status:"holding",act_at:iso(-9),acted:null}] : [],launch_until:null,config:{refundDelayMin:10,windowMin:10,immediateRevoke:false,alertUrl:null,dryRun:true}};

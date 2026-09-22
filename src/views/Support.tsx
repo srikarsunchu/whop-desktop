@@ -7,12 +7,10 @@ import { useEffect, useState } from "react";
 import { EmptyPanel, PageHeader, Panel, QueryBody } from "../components/Panel";
 import { ActionEditor, option, useSaved, type ActionSpec, type RecordData } from "../components/Workspace";
 import { StatusBadge } from "../components/UserCell";
-import { money, relative, shortDate, titleCase } from "../lib/format";
-import { useAccount, useWv, wvPath, type WvSupport } from "../lib/whop";
+import { money, relative, shortDate } from "../lib/format";
+import { useAccount, useWhop, useWv, wvPath, type Page, type WvSupport } from "../lib/whop";
+import { supportRows, titlesOf, type CaseRow, type DisputeRow, type MembershipRow, type PaymentRow } from "../lib/support";
 
-const rows = (v: RecordData[] | { error: string } | undefined): RecordData[] => (Array.isArray(v) ? v : []);
-const failed = (v: RecordData[] | { error: string } | undefined): string | undefined => (v && !Array.isArray(v) ? v.error : undefined);
-const amount = (r: RecordData) => r.total ?? r.presentment_total ?? r.amount ?? r.amount_after_fees;
 const EVIDENCE = ["digital_fulfillment", "physical_fulfillment", "customer_order_history", "prior_transactions", "customer_session", "product_image", "return_policy", "shipping_policy", "subscription"];
 
 export function Support({ runInTerminal }: { runInTerminal: (command: string) => void }) {
@@ -25,18 +23,23 @@ export function Support({ runInTerminal }: { runInTerminal: (command: string) =>
   const [draft, setDraft] = useState(key);
   useEffect(() => setDraft(key), [key]);
   const lookup = useWv<WvSupport>(hasWv && key ? "support" : null, ["lookup", key], { ttl: 60_000 });
+  // The API's membership record carries product_id and plan_id only; two list reads name them.
+  const found = !!lookup.data?.user;
+  const products = useWhop<Page<RecordData>>(found ? ["products", "list"] : null, { ttl: 5 * 60_000 });
+  const plans = useWhop<Page<RecordData>>(found ? ["plans", "list"] : null, { ttl: 5 * 60_000 });
+  const titles = { products: titlesOf(products.data?.data), plans: titlesOf(plans.data?.data) };
   const [action, setAction] = useState<ActionSpec | null>(null);
   const demo = !!account?.demo;
 
-  const refund = (p: RecordData) =>
+  const refund = (p: PaymentRow) =>
     setAction({
       key: `support.refund.${p.id}`,
-      title: `Refund ${money(amount(p), p.currency ?? "usd")}`,
+      title: `Refund ${money(p.amount, p.currency)}`,
       description: "wv reads the payment first and shows what was already refunded and what remains. The plan asks for the amount typed back.",
       fields: [{ key: "amount", label: "Amount (blank for everything that remains)", type: "number", min: 0 }],
       build: (v) => ["support", "refund", String(p.id), ...(v.amount ? ["--amount", v.amount] : [])],
     });
-  const extend = (m: RecordData) =>
+  const extend = (m: MembershipRow) =>
     setAction({
       key: `support.extend.${m.id}`,
       title: "Extend the membership",
@@ -45,7 +48,7 @@ export function Support({ runInTerminal }: { runInTerminal: (command: string) =>
       initial: { days: "7" },
       build: (v) => ["memberships", "extend", String(m.id), "--days", v.days],
     });
-  const cancel = (m: RecordData) =>
+  const cancel = (m: MembershipRow) =>
     setAction({
       key: `support.cancel.${m.id}`,
       title: "Cancel the membership",
@@ -55,14 +58,14 @@ export function Support({ runInTerminal }: { runInTerminal: (command: string) =>
       danger: true,
       build: (v) => ["memberships", "cancel", String(m.id), "--cancel_at_period_end", v.when === "now" ? "false" : "true"],
     });
-  const pause = (m: RecordData) =>
+  const pause = (m: MembershipRow) =>
     setAction({ key: `support.pause.${m.id}`, title: "Pause the membership", description: "Stops billing and access until it is resumed.", fields: [], build: () => ["memberships", "pause", String(m.id)] });
-  const resume = (m: RecordData) =>
+  const resume = (m: MembershipRow) =>
     setAction({ key: `support.resume.${m.id}`, title: "Resume the membership", description: "Billing and access start again from the next cycle.", fields: [], build: () => ["memberships", "resume", String(m.id)] });
-  const dispute = (d: RecordData) =>
+  const dispute = (d: DisputeRow) =>
     setAction({
       key: `support.dispute.${d.id}`,
-      title: `Answer the dispute (${titleCase(String(d.reason ?? "dispute"))})`,
+      title: `Answer the dispute (${d.reason})`,
       description: "Evidence files are uploaded first with `whop files create --filename …`, which returns a file id. The plan shows the amount, the reason, the evidence deadline, and every document, then submits only after you approve.",
       fields: [
         { key: "evidence", label: "Evidence file ids, comma separated (file_x:type)", required: true, hint: `Types: ${EVIDENCE.join(", ")}. Without a type, digital_fulfillment.` },
@@ -70,7 +73,7 @@ export function Support({ runInTerminal }: { runInTerminal: (command: string) =>
       // One comma-joined --evidence, the form the skill documents: wv folds a repeated flag into a JSON array before the recipe reads it.
       build: (v) => ["support", "dispute", String(d.id), "--evidence", v.evidence.split(",").map((e) => e.trim()).filter(Boolean).join(",")],
     });
-  const reply = (c: RecordData) =>
+  const reply = (c: CaseRow) =>
     setAction({
       key: `support.reply.${c.id}`,
       title: "Reply to the case",
@@ -146,105 +149,96 @@ export function Support({ runInTerminal }: { runInTerminal: (command: string) =>
                         )}
                       </dl>
                       <div className="support-grid">
-                        <Section title="Memberships" error={failed(d.memberships)} items={rows(d.memberships)} empty="No memberships.">
-                          {(m) => (
-                            <tr key={m.id}>
-                              <td>
-                                <strong>{m.product?.title ?? m.product_id ?? "—"}</strong>
-                                <br />
-                                <Text size="1" color="gray">
-                                  {m.plan?.title ?? m.plan_id ?? ""} · <code>{m.id}</code>
-                                </Text>
-                              </td>
-                              <td>
-                                <StatusBadge status={m.status} />
-                                {m.current_period_end || m.renewal_period_end ? (
-                                  <>
-                                    <br />
-                                    <Text size="1" color="gray">
-                                      {m.cancel_at_period_end ? "ends" : "renews"} {shortDate(m.current_period_end ?? m.renewal_period_end)}
-                                    </Text>
-                                  </>
-                                ) : null}
-                              </td>
-                              <td>
-                                {["active", "trialing", "past_due"].includes(String(m.status)) && (
-                                  <>
-                                    <Button size="1" variant="soft" onClick={() => extend(m)}>Extend</Button>{" "}
-                                    <Button size="1" variant="soft" onClick={() => pause(m)}>Pause</Button>{" "}
-                                    <Button size="1" variant="soft" color="red" onClick={() => cancel(m)}>Cancel</Button>
-                                  </>
+                        {(() => {
+                          const r = supportRows(d, titles);
+                          return (
+                            <>
+                              <Section title="Memberships" error={r.errors.memberships} items={r.memberships} empty="No memberships.">
+                                {(m) => (
+                                  <tr key={m.id}>
+                                    <td>
+                                      <strong>{m.product}</strong>
+                                      <br />
+                                      <Text size="1" color="gray">
+                                        {m.plan}{m.plan ? " · " : ""}<code>{m.id}</code>
+                                      </Text>
+                                    </td>
+                                    <td>
+                                      <StatusBadge status={m.status} />
+                                      {m.periodEnd && (
+                                        <>
+                                          <br />
+                                          <Text size="1" color="gray">
+                                            {m.ends ? "ends" : "renews"} {shortDate(m.periodEnd)}
+                                          </Text>
+                                        </>
+                                      )}
+                                    </td>
+                                    <td>
+                                      {m.actions.includes("extend") && <><Button size="1" variant="soft" onClick={() => extend(m)}>Extend</Button>{" "}</>}
+                                      {m.actions.includes("pause") && <><Button size="1" variant="soft" onClick={() => pause(m)}>Pause</Button>{" "}</>}
+                                      {m.actions.includes("cancel") && <Button size="1" variant="soft" color="red" onClick={() => cancel(m)}>Cancel</Button>}
+                                      {m.actions.includes("resume") && <Button size="1" variant="soft" onClick={() => resume(m)}>Resume</Button>}
+                                    </td>
+                                  </tr>
                                 )}
-                                {m.status === "paused" && (
-                                  <Button size="1" variant="soft" onClick={() => resume(m)}>Resume</Button>
+                              </Section>
+                              <Section title="Payments" error={r.errors.payments} items={r.payments} empty="No payments.">
+                                {(p) => (
+                                  <tr key={p.id}>
+                                    <td>
+                                      <strong>{money(p.amount, p.currency)}</strong>
+                                      {p.refunded > 0 && <Text size="1" color="gray"> · {money(p.refunded, p.currency)} refunded</Text>}
+                                      <br />
+                                      <Text size="1" color="gray">
+                                        {p.createdAt ? shortDate(p.createdAt) : ""} · {p.reason} · <code>{p.id}</code>
+                                      </Text>
+                                    </td>
+                                    <td>
+                                      <StatusBadge status={p.status} />
+                                    </td>
+                                    <td>{p.refundable && <Button size="1" variant="soft" color="amber" onClick={() => refund(p)}>Refund</Button>}</td>
+                                  </tr>
                                 )}
-                              </td>
-                            </tr>
-                          )}
-                        </Section>
-                        <Section title="Payments" error={failed(d.payments)} items={rows(d.payments)} empty="No payments.">
-                          {(p) => {
-                            const refunded = Number(p.refunded_amount?.amount ?? p.refunded_amount ?? 0);
-                            return (
-                              <tr key={p.id}>
-                                <td>
-                                  <strong>{money(amount(p), p.currency ?? "usd")}</strong>
-                                  {refunded > 0 && <Text size="1" color="gray"> · {money(refunded, p.currency ?? "usd")} refunded</Text>}
-                                  <br />
-                                  <Text size="1" color="gray">
-                                    {p.created_at ? shortDate(p.created_at) : ""} · {titleCase(String(p.billing_reason ?? ""))} · <code>{p.id}</code>
-                                  </Text>
-                                </td>
-                                <td>
-                                  <StatusBadge status={p.status} />
-                                </td>
-                                <td>
-                                  {p.status === "paid" && p.refundable !== false && (
-                                    <Button size="1" variant="soft" color="amber" onClick={() => refund(p)}>Refund</Button>
-                                  )}
-                                </td>
-                              </tr>
-                            );
-                          }}
-                        </Section>
-                        <Section title="Disputes" error={failed(d.disputes)} items={rows(d.disputes)} empty="No disputes on this customer's payments.">
-                          {(x) => {
-                            const due = x.evidence_due_at ?? x.due_by;
-                            return (
-                              <tr key={x.id}>
-                                <td>
-                                  <strong>{money(x.amount, x.currency ?? "usd")}</strong> · {titleCase(String(x.reason ?? "dispute"))}
-                                  {x.inquiry ? <Badge size="1" color="gray" variant="soft" style={{ marginLeft: 6 }}>inquiry</Badge> : null}
-                                  <br />
-                                  <Text size="1" color={due && +new Date(due) - Date.now() < 86_400_000 ? "red" : "gray"}>
-                                    {due ? `evidence due ${relative(due)}` : ""} · <code>{x.id}</code>
-                                  </Text>
-                                </td>
-                                <td>
-                                  <StatusBadge status={x.status} />
-                                </td>
-                                <td>{x.status === "needs_response" && <Button size="1" variant="soft" color="amber" onClick={() => dispute(x)}>Answer</Button>}</td>
-                              </tr>
-                            );
-                          }}
-                        </Section>
-                        <Section title="Cases" error={failed(d.cases)} items={rows(d.cases)} empty="No resolution-center cases.">
-                          {(c) => (
-                            <tr key={c.id}>
-                              <td>
-                                <strong>{c.subject ?? titleCase(String(c.reason ?? "case"))}</strong>
-                                <br />
-                                <Text size="1" color="gray">
-                                  {c.created_at ? `opened ${relative(c.created_at)}` : ""} · <code>{c.id}</code>
-                                </Text>
-                              </td>
-                              <td>
-                                <StatusBadge status={c.status} />
-                              </td>
-                              <td>{c.status === "awaiting_merchant" && <Button size="1" variant="soft" color="amber" onClick={() => reply(c)}>Reply</Button>}</td>
-                            </tr>
-                          )}
-                        </Section>
+                              </Section>
+                              <Section title="Disputes" error={r.errors.disputes} items={r.disputes} empty="No disputes on this customer's payments.">
+                                {(x) => (
+                                  <tr key={x.id}>
+                                    <td>
+                                      <strong>{money(x.amount, x.currency)}</strong> · {x.reason}
+                                      {x.inquiry ? <Badge size="1" color="gray" variant="soft" style={{ marginLeft: 6 }}>inquiry</Badge> : null}
+                                      <br />
+                                      <Text size="1" color={x.urgent ? "red" : "gray"}>
+                                        {x.due ? `evidence due ${relative(x.due)}` : ""} · <code>{x.id}</code>
+                                      </Text>
+                                    </td>
+                                    <td>
+                                      <StatusBadge status={x.status} />
+                                    </td>
+                                    <td>{x.answerable && <Button size="1" variant="soft" color="amber" onClick={() => dispute(x)}>Answer</Button>}</td>
+                                  </tr>
+                                )}
+                              </Section>
+                              <Section title="Cases" error={r.errors.cases} items={r.cases} empty="No resolution-center cases.">
+                                {(c) => (
+                                  <tr key={c.id}>
+                                    <td>
+                                      <strong>{c.subject}</strong>
+                                      <br />
+                                      <Text size="1" color="gray">
+                                        {c.createdAt ? `opened ${relative(c.createdAt)}` : ""} · <code>{c.id}</code>
+                                      </Text>
+                                    </td>
+                                    <td>
+                                      <StatusBadge status={c.status} />
+                                    </td>
+                                    <td>{c.replyable && <Button size="1" variant="soft" color="amber" onClick={() => reply(c)}>Reply</Button>}</td>
+                                  </tr>
+                                )}
+                              </Section>
+                            </>
+                          );
+                        })()}
                       </div>
                     </div>
                   )
@@ -259,7 +253,7 @@ export function Support({ runInTerminal }: { runInTerminal: (command: string) =>
   );
 }
 
-function Section({ title, error, items, empty, children }: { title: string; error?: string; items: RecordData[]; empty: string; children: (r: RecordData) => React.ReactNode }) {
+function Section<T extends { id: string }>({ title, error, items, empty, children }: { title: string; error?: string; items: T[]; empty: string; children: (r: T) => React.ReactNode }) {
   return (
     <Panel title={title} size="2">
       {error ? (

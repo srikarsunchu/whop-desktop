@@ -176,3 +176,31 @@ assert.deepEqual(rerunOutcome('{"ok":true,"data":{"id":"prod_1"}}',0),{ok:true,d
 assert.equal(rerunOutcome('{"ok":false,"error":{"code":"APPROVAL_EXPIRED","message":"stale"}}',2).ok,false);
 assert.equal(rerunOutcome('',0).ok,true);
 console.log('Gate checks passed: data, plan, refusal, rerun outcomes.');
+
+// Support's rows: titles behind the ids a real membership carries, the actions each status offers, money shapes,
+// the dispute clock, and a section wv could not read.
+const { supportRows, titlesOf, amountOf } = await moduleFrom("src/lib/support.ts");
+const now = Date.parse("2026-09-22T00:00:00Z");
+const real = supportRows(
+  {
+    memberships: [{ id: "mem_1", status: "completed", product_id: "prod_1", plan_id: "plan_1", current_period_end: null }, { id: "mem_2", status: "active", product_id: "prod_2", plan_id: "plan_9", current_period_end: "2026-10-01T00:00:00Z", cancel_at_period_end: true }],
+    payments: [{ id: "pay_1", status: "paid", refundable: true, currency: "usd", total: { amount: "10.00", currency: "usd" }, refunded_amount: { amount: "2.50", currency: "usd" }, billing_reason: "one_time", created_at: "2026-09-16T00:00:00Z" }],
+    disputes: [{ id: "dsp_1", status: "needs_response", reason: "product_not_received", amount: { amount: "49.00", currency: "usd" }, evidence_due_at: "2026-09-22T12:00:00Z" }],
+    cases: { error: "resolution-center-cases list refused this login" },
+  },
+  { products: titlesOf([{ id: "prod_1", title: "Hypermotion" }, { id: "prod_2", title: "Frame" }]), plans: titlesOf([{ id: "plan_1", title: "Flex — 300 credits" }]) },
+  now,
+);
+assert.deepEqual(real.memberships.map((m) => [m.product, m.plan, m.actions]), [["Hypermotion", "Flex — 300 credits", []], ["Frame", "plan_9", ["extend", "pause", "cancel"]]], "titles from the lists, the id when no list names it, actions by status");
+assert.equal(real.memberships[1].ends, true);
+assert.deepEqual([real.payments[0].amount, real.payments[0].refunded, real.payments[0].reason, real.payments[0].refundable], [10, 2.5, "One Time", true]);
+assert.deepEqual([real.disputes[0].urgent, real.disputes[0].answerable, real.disputes[0].reason], [true, true, "Product Not Received"], "under 24 hours is urgent");
+assert.equal(real.cases.length, 0);
+assert.match(real.errors.cases, /refused/);
+const demo = supportRows({ memberships: [{ id: "mem_d", status: "paused", product: { id: "p", title: "VIP Picks" }, plan: { id: "q", title: "Monthly" }, renewal_period_end: "2026-09-14T23:26:52Z" }], payments: [], disputes: [{ id: "dsp_d", status: "won", amount: 49, due_by: "2026-09-27T00:00:00Z" }], cases: [] }, {}, now);
+assert.deepEqual([demo.memberships[0].product, demo.memberships[0].plan, demo.memberships[0].periodEnd, demo.memberships[0].actions], ["VIP Picks", "Monthly", "2026-09-14T23:26:52Z", ["resume"]], "nested titles win; paused offers resume");
+assert.deepEqual([demo.disputes[0].amount, demo.disputes[0].urgent, demo.disputes[0].answerable], [49, false, false]);
+assert.deepEqual(supportRows(undefined), { memberships: [], payments: [], disputes: [], cases: [], errors: {} });
+assert.equal(amountOf("12.5"), 12.5);
+assert.equal(amountOf({ amount: "x" }), undefined);
+console.log("Support checks passed: titles, actions by status, money, the dispute clock, and unread sections.");

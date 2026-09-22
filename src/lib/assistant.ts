@@ -27,11 +27,8 @@ export async function runRerun(rerun: string[]): Promise<{ stdout: string; stder
 }
 
 export async function wvAvailable(): Promise<string | null> {
-  try {
-    return await invoke<string | null>("wv_binary_path");
-  } catch {
-    return null;
-  }
+  const { wvPath } = await import("./whop");
+  return wvPath();
 }
 
 export type Block =
@@ -252,6 +249,10 @@ export function buildDemoFixtures(): Record<string, unknown> {
       ["ledgers", "report", "--report_type", "balance_summary"],
     ],
     ["payouts list"],
+    ["payouts methods"],
+    ["plans list"],
+    ["accounts reserves"],
+    ["verifications list"],
     ["people list"],
     ["apps list"],
     ["economic-intelligence list"],

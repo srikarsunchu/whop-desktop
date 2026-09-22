@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { Button, Dialog, toast } from 'frosted-ui';
 import { invoke } from '@tauri-apps/api/core';
-import { claudeAvailable, wvAvailable } from '../lib/assistant';
+import { claudeAvailable } from '../lib/assistant';
+import { invalidateWv, wvInfo, WV_MIN_VERSION, type WvInfo } from '../lib/whop';
 import { useAccount, type Account } from '../lib/whop';
 
 const message = (e: unknown) => e && typeof e === 'object' && 'message' in e ? String(e.message) : String(e);
@@ -13,8 +14,8 @@ export function Welcome({open,onFinish}:{open:boolean;onFinish:(account:Account,
   const [busy,setBusy]=useState('');
   const [error,setError]=useState('');
   const [claude,setClaude]=useState<{installed:boolean;connected:boolean}|null>(null);
-  const [wv,setWv]=useState<string|null|undefined>(undefined);
-  useEffect(()=>{if(open&&step===2)wvAvailable().then(setWv);},[open,step]);
+  const [wv,setWv]=useState<WvInfo|undefined>(undefined);
+  useEffect(()=>{if(open&&step===2)wvInfo().then(setWv);},[open,step]);
   const lock=useRef(false);
   const real=accounts.filter(a=>!a.demo);
   const chosen=demo?accounts.find(a=>a.demo):real.find(a=>a.id===selected);
@@ -65,8 +66,8 @@ export function Welcome({open,onFinish}:{open:boolean;onFinish:(account:Account,
     {step===2&&<div className="welcome-body">
       <div className="welcome-connection"><span className="welcome-status" data-ready={!!claude?.connected}>{claude?.connected?'✓':'✦'}</span><div><strong>{claude?.connected?'Claude is connected':claude?.installed?'Connect your Claude account':'Connect Claude Code'}</strong><p>{claude?.connected?'Your existing Claude connection is ready to use.':'The assistant uses Claude Code on your Mac. You’ll need an account with Claude Code access.'}</p></div></div>
       {demo&&<p className="welcome-note">You’re trying Northwind Picks, a fictional business. Chat still uses your Claude account; Studio samples work without it.</p>}
-      {wv!==undefined&&<div className="welcome-connection"><span className="welcome-status" data-ready={!!wv}>{wv?'✓':'·'}</span><div><strong>{wv?'wv is installed':'Optional: install wv'}</strong><p>{wv?'Changes the assistant makes come back as plans you approve on a card.':'With wv, a change the assistant makes shows its plan on a card and runs only when you approve it. Without it, changes stay off until you allow them. Needs Node 22.6 or newer.'}</p></div></div>}
-      {wv===null&&<div className="welcome-install"><code>git clone https://github.com/srikarsunchu/whop-view && cd whop-view && pnpm install && pnpm build && pnpm link --global</code><div className="welcome-actions"><Button size="2" variant="surface" onClick={()=>copy('git clone https://github.com/srikarsunchu/whop-view && cd whop-view && pnpm install && pnpm build && pnpm link --global')}>Copy install command</Button><Button size="2" variant="ghost" disabled={!!busy} onClick={()=>wvAvailable().then(setWv)}>Check again</Button></div></div>}
+      {wv!==undefined&&<div className="welcome-connection"><span className="welcome-status" data-ready={wv.ok}>{wv.ok?'✓':'·'}</span><div><strong>{wv.ok?`wv ${wv.version} is installed`:wv.stale?`Update wv (${wv.version} installed, ${WV_MIN_VERSION} needed)`:'Optional: install wv'}</strong><p>{wv.ok?'Changes the assistant makes come back as plans you approve on a card.':wv.stale?'This app needs a newer wv: screens that take the business as a flag, and the swap plan. Until then changes stay off until you allow them.':'With wv, a change the assistant makes shows its plan on a card and runs only when you approve it. Without it, changes stay off until you allow them. Needs Node 22.6 or newer.'}</p></div></div>}
+      {wv!==undefined&&!wv.ok&&<div className="welcome-install"><code>{wv.stale?'cd whop-view && git pull && pnpm install && pnpm build':'git clone https://github.com/srikarsunchu/whop-view && cd whop-view && pnpm install && pnpm build && pnpm link --global'}</code><div className="welcome-actions"><Button size="2" variant="surface" onClick={()=>copy(wv.stale?'cd whop-view && git pull && pnpm install && pnpm build':'git clone https://github.com/srikarsunchu/whop-view && cd whop-view && pnpm install && pnpm build && pnpm link --global')}>Copy {wv.stale?'update':'install'} command</Button><Button size="2" variant="ghost" disabled={!!busy} onClick={()=>{invalidateWv();wvInfo().then(setWv);}}>Check again</Button></div></div>}
       {!claude?.installed&&claude!==null&&<Button className="welcome-primary" size="3" disabled={!!busy} onClick={()=>external('https://claude.com/claude-code')}>Get Claude Code ↗</Button>}
       {claude?.installed&&!claude.connected&&<Button className="welcome-primary" size="3" disabled={!!busy} loading={busy==='Connecting Claude'} onClick={()=>task('Connecting Claude',async()=>{await invoke('claude_login');await checkClaude();})}>{busy==='Connecting Claude'?'Finish signing in in your browser…':'Connect Claude ↗'}</Button>}
       {!claude?.connected&&<Button className="welcome-primary" variant="surface" disabled={!!busy} loading={busy==='Checking Claude'} onClick={()=>task('Checking Claude',checkClaude)}>Check connection</Button>}

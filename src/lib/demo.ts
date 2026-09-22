@@ -287,6 +287,18 @@ function demoSeed(args: string[]): any {
       return withPage(payouts());
     case "products list":
       return withPage(products.map(({ plan, ...p }) => ({ ...p, account: { id: DEMO_ACCOUNT_ID, title: DEMO_ACCOUNT.title }, default_plan: plan })));
+    case "plans list": {
+      // Every product's plan as the CLI lists plans: prices as numbers, the product as a relation. `--product_id` narrows.
+      const pid = args[args.indexOf("--product_id") + 1];
+      return withPage(products.filter((p) => !args.includes("--product_id") || p.id === pid).map((p) => ({ id: p.plan.id, title: p.plan.title, plan_type: p.plan.plan_type, billing_period: p.plan.billing_period, initial_price: Number(p.plan.initial_price.amount), renewal_price: Number(p.plan.renewal_price.amount), currency: "usd", visibility: "visible", release_method: "buy_now", member_count: p.member_count, unlimited_stock: true, stock: 0, trial_period_days: null, created_at: p.created_at, purchase_url: `https://whop.com/checkout/${p.plan.id}`, product: { id: p.id, title: p.title }, account: { id: DEMO_ACCOUNT_ID, title: DEMO_ACCOUNT.title } })));
+    }
+    case "payouts methods":
+      // One saved bank, with the limits sibling `--include_limits` adds: payouts allowed, up to $5,000 per standard payout.
+      return { ...withPage([{ id: "potk_NwChase01", object: "payout_method", nickname: "Chase checking", institution_name: "JPMorgan Chase", account_reference: "••••4242", currency: "usd", is_default: true, status: "active", destination: { category: "bank_account" } }]), limits: { object: "payout_limit", currency: "usd", standard: { max_amount: 5000, daily_amount_remaining: 5000 }, instant: { max_amount: 250, daily_amount_remaining: 250 } } };
+    case "accounts reserves":
+      return { data: [] };
+    case "verifications list":
+      return withPage([{ id: "ver_NwVerified", status: "verified", last_error_code: null, last_error_reason: null }]);
     case "people list":
       return withPage(people());
     case "apps list":

@@ -201,14 +201,44 @@ export function useWhop<T = unknown>(
 // wv: the gated face of the CLI (github.com/srikarsunchu/whop-view)
 // ---------------------------------------------------------------------------
 
-let wvPathCache: Promise<string | null> | undefined;
-/** Where `wv` is, or null. Cached for the session; `invalidateWv` after an install. */
-export function wvPath(): Promise<string | null> {
-  wvPathCache ??= (isTauri() ? invoke<string | null>("wv_binary_path") : Promise.resolve(null)).catch(() => null);
-  return wvPathCache;
+/** The wv this app was built against: screens take --account_id, a fiat swaps create is the swap plan, --wv-version exists. */
+export const WV_MIN_VERSION = "0.1.0";
+export interface WvInfo {
+  path: string | null;
+  version: string | null;
+  /** Installed and at least the floor. Everything that uses wv keys off this. */
+  ok: boolean;
+  /** Installed but older than the floor. */
+  stale: boolean;
+}
+export const versionAtLeast = (v: string, min: string) => {
+  const a = v.split(".").map(Number);
+  const b = min.split(".").map(Number);
+  for (let i = 0; i < 3; i++) {
+    if ((a[i] ?? 0) !== (b[i] ?? 0)) return (a[i] ?? 0) > (b[i] ?? 0);
+  }
+  return true;
+};
+let wvInfoCache: Promise<WvInfo> | undefined;
+/** Where `wv` is and whether it is new enough. Cached for the session; `invalidateWv` after an install or update. */
+export function wvInfo(): Promise<WvInfo> {
+  wvInfoCache ??= (async () => {
+    if (!isTauri()) return { path: null, version: null, ok: false, stale: false };
+    const path = await invoke<string | null>("wv_binary_path").catch(() => null);
+    if (!path) return { path: null, version: null, ok: false, stale: false };
+    const version = (await invoke<string | null>("wv_version").catch(() => null)) ?? "0.0.0";
+    const ok = versionAtLeast(version, WV_MIN_VERSION);
+    return { path, version, ok, stale: !ok };
+  })();
+  return wvInfoCache;
+}
+/** The path when wv is installed and new enough, else null: what the panels and the gate key off. */
+export async function wvPath(): Promise<string | null> {
+  const i = await wvInfo();
+  return i.ok ? i.path : null;
 }
 export function invalidateWv() {
-  wvPathCache = undefined;
+  wvInfoCache = undefined;
 }
 
 export const wvCommandString = (args: string[]) => "wv " + args.map((a) => (/[\s"]/.test(a) ? JSON.stringify(a) : a)).join(" ");

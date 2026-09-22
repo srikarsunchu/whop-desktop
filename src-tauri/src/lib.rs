@@ -676,6 +676,21 @@ fn wv_binary_path() -> Option<String> {
     wv_binary_path_pub()
 }
 
+/// `wv --wv-version`, so the app can require the wv it was built against; a wv too old to print it answers with
+/// whop's version banner or nothing, and reads as 0.0.0.
+#[tauri::command]
+async fn wv_version() -> Option<String> {
+    tauri::async_runtime::spawn_blocking(|| {
+        let bin = wv_binary()?;
+        let out = Command::new(bin).arg("--wv-version").env("NO_COLOR", "1").stdin(std::process::Stdio::null()).output().ok()?;
+        let text = String::from_utf8_lossy(&out.stdout).trim().to_string();
+        if out.status.success() && text.split('.').count() == 3 && text.chars().all(|c| c.is_ascii_digit() || c == '.') { Some(text) } else { Some("0.0.0".into()) }
+    })
+    .await
+    .ok()
+    .flatten()
+}
+
 /// API-key login. The key travels to the CLI through `WHOP_API_KEY` (never
 /// argv, so it does not show up in `ps`) and is not logged or stored here; the
 /// CLI keeps it in its own profile store. Needed because `webhooks *` is only
@@ -1298,6 +1313,7 @@ pub fn run() {
             wv_raw,
             wv_json,
             wv_binary_path,
+            wv_version,
             launch_hints,
             open_web_window,
             open_external,

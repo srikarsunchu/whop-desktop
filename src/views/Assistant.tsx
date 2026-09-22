@@ -52,6 +52,7 @@ import {
 import { useAccount } from "../lib/whop";
 import { PlanCard } from "../components/PlanCard";
 import { parseGate } from "../lib/gate";
+import { usePresentation } from "../lib/presentation";
 import { Terminal } from "./Terminal";
 
 const uid = () =>
@@ -80,6 +81,7 @@ export function Assistant({
   onNavigate: (view: ViewId) => void;
 }) {
   const { account } = useAccount();
+  const pres = usePresentation();
   const acctKey = account?.id ?? "none";
   const [mode, setMode] = useState<"chat" | "raw">(() =>
     seed ? "raw" : "chat",
@@ -317,6 +319,7 @@ export function Assistant({
             accountId: account?.id,
             accountTitle: account?.title,
             demo: !!account?.demo,
+            presentation: pres,
             allowWrites,
             model,
             gated: !!wvPath,
@@ -705,7 +708,7 @@ export function Assistant({
                 <span className="assistant-business">
                   <span className="live-dot" />
                   {account?.title ?? "Connecting your business…"}
-                  {account?.demo ? " · Demo" : ""}
+                  {account?.demo && !pres ? " · Demo" : ""}
                 </span>
                 <h2>What should we work on?</h2>
                 <p>
@@ -799,7 +802,7 @@ export function Assistant({
                 </button>
                 <button type="button" className="creative-mode-button" disabled={busy} onClick={()=>creativeRef.current?.importImage()}>Import artwork</button>
                 <span>
-                  {account?.demo
+                  {account?.demo && !pres
                     ? "Demo business"
                     : (account?.title ?? "Connecting…")}
                 </span>
@@ -1059,6 +1062,7 @@ function ToolCard({
 }) {
   const [open, setOpen] = useState(false);
   const { account } = useAccount();
+  const pres = usePresentation();
   const destination = toolDestination(call.command);
   const activity =
     call.description ||
@@ -1145,9 +1149,9 @@ function ToolCard({
         <PlanCard
           gate={call.gate}
           result={call.gateResult}
-          demo={!!account?.demo}
+          demo={!!account?.demo && !pres}
           onApprove={async () => {
-            const r = await runRerun(call.gate!.rerun ?? [], !!account?.demo);
+            const r = await runRerun(call.gate!.rerun ?? [], !!account?.demo, pres);
             onGate?.(true, r.stdout || r.stderr, r.code);
           }}
           onDecline={() => onGate?.(false)}

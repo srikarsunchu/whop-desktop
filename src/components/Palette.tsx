@@ -6,6 +6,7 @@ import { CheckIcon, CodeIcon, LightningBoltIcon, OpenInNewWindowIcon } from "@ra
 import { useEffect, useState } from "react";
 import { NAV, type ViewId } from "./Sidebar";
 import { useAccount } from "../lib/whop";
+import { presentation, setPresentation } from "../lib/presentation";
 
 const COMMON: { label: string; command: string }[] = [
   { label: "List products", command: "whop products list" },
@@ -100,6 +101,14 @@ export function Palette({ open, onOpenChange, onNavigate, onRun }: { open: boole
                   </Command.Item>
                 ))}
               </Command.Group>
+              {account?.demo && (
+                <Command.Group heading="Display">
+                  <Command.Item value="presentation mode hide demo labels" onSelect={() => go(() => setPresentation(!presentation()))}>
+                    <LightningBoltIcon />
+                    <span>Presentation mode · {presentation() ? "show demo labels again" : "hide the demo labels"}</span>
+                  </Command.Item>
+                </Command.Group>
+              )}
             </Command.List>
           </Command>
         </div>

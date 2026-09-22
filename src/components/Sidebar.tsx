@@ -29,6 +29,7 @@ import {
 } from "@radix-ui/react-icons";
 import { invoke } from "@tauri-apps/api/core";
 import { useAccount } from "../lib/whop";
+import { usePresentation } from "../lib/presentation";
 import { DoctorStrip } from "./DoctorStrip";
 
 export type ViewId =
@@ -82,6 +83,8 @@ export function Sidebar({
     useAccount();
   const [running, setRunning] = useState(false);
   const [chats, setChats] = useState<ChatLibrary | null>(null);
+  const pres = usePresentation();
+  const showDemo = !!account?.demo && !pres;
   useEffect(() => {
     if (!account) {
       setChats(null);
@@ -119,7 +122,7 @@ export function Sidebar({
                   {account?.title ?? "Choose a business"}
                 </Text>
                 <Text size="1" color="gray">
-                  {account?.demo
+                  {showDemo
                     ? "Demo data"
                     : account
                       ? "Business workspace"
@@ -278,9 +281,9 @@ export function Sidebar({
             className="live-dot"
             data-off={!account?.demo && loggedIn !== true}
           />
-          {account?.demo
+          {showDemo
             ? "Demo workspace"
-            : loggedIn === true
+            : loggedIn === true || account?.demo
               ? "Whop CLI connected"
               : loggedIn === false
                 ? "CLI not connected"

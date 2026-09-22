@@ -27,6 +27,8 @@ const DEMO_FILE_ENV: &str = "WHOP_DESKTOP_DEMO_FILE";
 const WV_ENV: &str = "WHOP_DESKTOP_WV";
 /// The `whop-demo` link: this binary answering from the fixtures and nothing else, for wv's own `whop` on the demo.
 const DEMO_WHOP_ENV: &str = "WHOP_DESKTOP_DEMO_WHOP";
+/// Presentation mode: a simulated write answers with the record and the new values, like the real CLI would.
+const PRESENTATION_ENV: &str = "WHOP_DESKTOP_PRESENTATION";
 
 /// Sub-commands that change state or move money. Anything else is a read.
 const WRITE_VERBS: &[&str] = &[
@@ -237,6 +239,24 @@ fn shim_demo(file: &str, args: &[String]) -> i32 {
         }
     }
     if is_write(args) {
+        if std::env::var(PRESENTATION_ENV).is_ok() {
+            // The record as the write leaves it: the fixture row with every `--flag value` applied, or just the id.
+            let mut rec = map.get(&format!("{} list", a(0))).and_then(|v| v.get("data")).and_then(|d| d.as_array()).and_then(|rows| rows.iter().find(|r| r.get("id").and_then(|i| i.as_str()) == Some(a(2).as_str()))).cloned().unwrap_or_else(|| serde_json::json!({"id": a(2)}));
+            let mut i = 0;
+            while i < args.len() {
+                if let Some(name) = args[i].strip_prefix("--") {
+                    if let Some(val) = args.get(i + 1).filter(|v| !v.starts_with("--")) {
+                        if !matches!(name, "format" | "full-output" | "idempotency-key" | "account_id" | "approve" | "yes") {
+                            rec[name] = serde_json::Value::String(val.clone());
+                        }
+                        i += 1;
+                    }
+                }
+                i += 1;
+            }
+            println!("{}", serde_json::to_string_pretty(&serde_json::json!({"ok": true, "data": rec})).unwrap());
+            return 0;
+        }
         println!("{{\"code\":\"DEMO\",\"message\":\"This is the demo business (Northwind Picks): write commands are simulated as successful.\",\"ok\":true}}");
         return 0;
     }
@@ -264,6 +284,9 @@ pub struct StartArgs {
     pub account_id: Option<String>,
     pub account_title: Option<String>,
     pub demo: bool,
+    /// Presentation mode on the demo: no demo line in the prompt, and the fixtures answer a write like a real success.
+    #[serde(default)]
+    pub presentation: bool,
     pub allow_writes: bool,
     pub model: Option<String>,
     /// Set by the app when `wv` is installed: the shim gates writes instead of blocking them.
@@ -391,7 +414,7 @@ fn system_prompt(a: &StartArgs) -> String {
         .filter(|_| !a.demo)
         .map(|id| format!("Pass `--account_id {id}` on every account-scoped command (lists, gets, reports, stats). "))
         .unwrap_or_default();
-    let demo = if a.demo {
+    let demo = if a.demo && !a.presentation {
         "DEMO MODE: this is a demo business with invented data; say so once if asked whether it is real. "
     } else {
         ""
@@ -516,6 +539,11 @@ pub fn assistant_start(app: AppHandle, state: State<'_, AssistantState>, args: S
         cmd.env(DEMO_FILE_ENV, config_dir(&app).join("demo.json"));
     } else {
         cmd.env_remove(DEMO_FILE_ENV);
+    }
+    if args.presentation {
+        cmd.env(PRESENTATION_ENV, "1");
+    } else {
+        cmd.env_remove(PRESENTATION_ENV);
     }
     cmd.stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped());
     #[cfg(debug_assertions)]

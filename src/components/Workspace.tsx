@@ -14,6 +14,7 @@ import { PlanCard } from "./PlanCard";
 import { gatedResult, rerunOutcome, type Gate } from "../lib/gate";
 import { runRerun } from "../lib/assistant";
 import { runWvJson, wvPath } from "../lib/whop";
+import { usePresentation } from "../lib/presentation";
 import { StatusBadge } from "./UserCell";
 
 export type RecordData = { id: string; [key: string]: any };
@@ -365,6 +366,8 @@ export function ActionEditor({
   onClose: () => void;
 }) {
   const { account } = useAccount();
+  const pres = usePresentation();
+  const showDemo = !!account?.demo && !pres;
   const storageKey = `draft.${spec.key}`;
   const [values, setValues] = useSaved(storageKey, spec.initial ?? {});
   const [review, setReview] = useState<string[] | null>(null);
@@ -437,7 +440,7 @@ export function ActionEditor({
       sessionStorage.removeItem(requestStorage);
       if (mounted.current) {
         toast.success(
-          account.demo ? "Saved in the local demo" : "Change completed",
+          showDemo ? "Saved in the local demo" : "Change completed",
         );
         spec.onSuccess?.(result);
         onClose();
@@ -495,9 +498,9 @@ export function ActionEditor({
             {gate && (
               <PlanCard
                 gate={gate}
-                demo={!!account?.demo}
+                demo={showDemo}
                 onApprove={async () => {
-                  const out = await runRerun(gate.rerun ?? [], !!account?.demo);
+                  const out = await runRerun(gate.rerun ?? [], !!account?.demo, pres);
                   const r = rerunOutcome(out.stdout, out.code);
                   if (!r.ok) {
                     setGate(null);
@@ -519,7 +522,7 @@ export function ActionEditor({
             {review && (
               <>
                 <p className="workspace-notice">
-                  {account?.demo
+                  {showDemo
                     ? "Demo · saved on this Mac. No messages, payments, or live changes."
                     : `This changes ${account?.title ?? "the selected business"}. Review the details before confirming.`}
                 </p>

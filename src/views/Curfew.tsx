@@ -5,6 +5,7 @@ import { isTauri } from "@tauri-apps/api/core";
 import { PageHeader, Loading, Panel } from "../components/Panel";
 import { StatTile } from "../components/StatTile";
 import { useAccount, wvPath } from "../lib/whop";
+import { usePresentation } from "../lib/presentation";
 import { ActionEditor, type ActionSpec } from "../components/Workspace";
 import { money, relative } from "../lib/format";
 import { isConnected, makeDemo, permissions, requestCurfew, signalNames, type CurfewState, type Incident, type Payment } from "../lib/curfew";
@@ -16,6 +17,7 @@ function remaining(time: string, now: number) { const seconds = Math.max(0, Math
 export function Curfew({ onSupport }: { onSupport?: (key: string) => void } = {}) {
   const { account } = useAccount();
   const demo = !!account?.demo;
+  const pres = usePresentation();
   const [data, setData] = useState<CurfewState | null>(() => demo ? makeDemo() : null);
   const [loading, setLoading] = useState(!demo);
   const [error, setError] = useState("");
@@ -103,7 +105,7 @@ export function Curfew({ onSupport }: { onSupport?: (key: string) => void } = {}
   const payments = (data?.scored ?? []).filter(p => filter === "all" || (filter === "flagged" ? heldIds.has(p.id) : p.status === "failed"));
   return <div className="stack curfew-page">
     <PageHeader title="Curfew" subtitle="Your business, watched over."
-      actions={<>{demo && <Badge color="gray">Demo · sample data</Badge>}{data && <><Button variant="surface" onClick={() => setDialog("launch")}><RocketIcon />{launchActive ? "Manage launch" : "I’m launching"}</Button><Button variant="ghost" aria-label="Curfew settings" onClick={showSettings}><GearIcon /></Button></>}</>} />
+      actions={<>{demo && !pres && <Badge color="gray">Demo · sample data</Badge>}{data && <><Button variant="surface" onClick={() => setDialog("launch")}><RocketIcon />{launchActive ? "Manage launch" : "I’m launching"}</Button><Button variant="ghost" aria-label="Curfew settings" onClick={showSettings}><GearIcon /></Button></>}</>} />
     {error && <div className="curfew-message" role="alert"><ExclamationTriangleIcon /><span>{error}</span><Button size="1" variant="surface" disabled={loading || busy} onClick={()=>void refresh()}>Retry</Button>{!demo && <Button size="1" variant="surface" onClick={()=>setDialog("connect")}>Reconnect</Button>}</div>}
     {notice && <Text size="1" color="gray" role="status">{notice}</Text>}
     {loading && !data ? <Loading label="Checking Curfew…" /> : !data ? <>
@@ -122,7 +124,7 @@ export function Curfew({ onSupport }: { onSupport?: (key: string) => void } = {}
       <Panel title="Recent payments" actions={<div className="curfew-filters">{["all","flagged","failed"].map(f=><button key={f} aria-pressed={filter===f} onClick={()=>setFilter(f)}>{f==="all" ? "All payments" : f==="flagged" ? "Pending action" : "Declined"}</button>)}</div>}>
         <div className="curfew-table-scroll"><table className="curfew-table"><thead><tr><th>Customer</th><th>Amount</th><th>Status</th><th>Risk score</th><th>Country</th><th>Time</th><th><span className="sr-only">Details</span></th></tr></thead><tbody>{payments.slice(0,30).map(p=><tr key={p.id}><td><strong>{p.user_name || "Unknown customer"}</strong><span>{p.card_last4 ? `Card •••• ${p.card_last4}` : "Card unavailable"}</span></td><td>{money(p.usd_total)}</td><td><Badge size="1" color={p.refunded_at ? "gray" : p.status==="failed" ? "red" : "green"}>{p.refunded_at ? "Refunded" : p.status}</Badge></td><td><span className="curfew-risk" data-high={(p.risk ?? 0)>=70}>{p.risk ?? "—"}<small>/ 99</small></span></td><td>{p.country ?? "—"}</td><td>{clock(p.created_at)}</td><td><Button size="1" variant="ghost" onClick={()=>setSelected(p)}>Details</Button></td></tr>)}</tbody></table></div>{!payments.length && <div className="curfew-empty"><Text size="2">No payments match this view.</Text></div>}
       </Panel>
-      <div className="curfew-footer"><Text size="1" color="gray">{demo ? "Interactive sample · no live actions" : `${data.tenant.title} · refreshes every 15 seconds`}{updated ? ` · Updated ${clock(new Date(updated).toISOString())}` : ""}</Text><Button variant="ghost" size="1" disabled={loading || busy || demo} onClick={()=>void refresh()}><ReloadIcon/>Refresh</Button></div>
+      <div className="curfew-footer"><Text size="1" color="gray">{demo && !pres ? "Interactive sample · no live actions" : `${data.tenant.title} · refreshes every 15 seconds`}{updated ? ` · Updated ${clock(new Date(updated).toISOString())}` : ""}</Text><Button variant="ghost" size="1" disabled={loading || busy || demo} onClick={()=>void refresh()}><ReloadIcon/>Refresh</Button></div>
     </>}
     {dialog && <Dialog.Root open onOpenChange={o=>{if(!o&&!busy){setDialog(null);setKey("");setError("");}}}><Dialog.Content style={{maxWidth:560}}><Dialog.Title>{dialog==="connect" ? `Connect ${account?.title}` : dialog==="settings" ? "Protection settings" : "Launch mode"}</Dialog.Title><Dialog.Description>{dialog==="connect" ? "Connect Curfew to learn your baseline and monitor incoming payments." : dialog==="settings" ? "Choose how Curfew responds when it detects an attack." : "Pause automatic actions during a planned launch. Curfew continues recording signals."}</Dialog.Description>
       <form className="curfew-form" onSubmit={e=>{e.preventDefault();if(dialog==="connect")void execute({title:"Connect",description:"",action:"connect",body:{apiKey:key},confirm:"Connect"});else if(dialog==="settings")setReview({title:"Save protection settings?",description:`Future incidents will wait ${delay} minutes before refunds. Access will be revoked ${revoke ? "immediately on detection" : "when refunds run"}. Existing holds keep their deadlines.`,action:"settings",body:{refundDelayMin:delay,immediateRevoke:revoke,alertUrl:alert},confirm:"Save settings"});else setReview({title:launchActive ? "Update launch mode?" : "Start launch mode?",description:`Automatic refunds and access removal will be paused for ${hours} hours. Pending holds that expire during launch mode are canceled.`,action:"launch",body:{hours},confirm:"Start launch mode"});}}>

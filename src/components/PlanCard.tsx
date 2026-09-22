@@ -153,9 +153,14 @@ export function PlanCard({ gate, result, demo, onApprove, onDecline }: { gate: G
             {result.approved ? (result.code === 0 ? "Ran." : `Did not complete (exit ${result.code}).`) : "Declined. Nothing ran."}
           </Text>
           {result.output && (
-            <pre className="tool-out">
-              <code>{result.output.slice(0, 4000)}</code>
-            </pre>
+            <details className="plan-output">
+              <summary>
+                <Text size="1" color="gray">What came back</Text>
+              </summary>
+              <pre className="tool-out">
+                <code>{result.output.slice(0, 4000)}</code>
+              </pre>
+            </details>
           )}
         </div>
       )}

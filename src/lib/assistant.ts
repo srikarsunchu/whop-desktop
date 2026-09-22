@@ -22,8 +22,8 @@ export interface ToolCall {
 }
 
 /** Runs a plan's rerun through wv. The leading `wv` in the rerun is fine; the Rust side drops it. On the demo business wv's `whop` is the app's fixtures shim. */
-export async function runRerun(rerun: string[], demo = false): Promise<{ stdout: string; stderr: string; code: number }> {
-  return invoke("wv_raw", { args: rerun, demo });
+export async function runRerun(rerun: string[], demo = false, presentation = false): Promise<{ stdout: string; stderr: string; code: number }> {
+  return invoke("wv_raw", { args: rerun, demo, presentation });
 }
 
 export async function wvAvailable(): Promise<string | null> {
@@ -62,6 +62,8 @@ export interface StartOpts {
   accountId?: string;
   accountTitle?: string;
   demo: boolean;
+  /** Presentation mode on the demo: no "this is a demo" line in the prompt, and simulated writes answer like real ones. */
+  presentation?: boolean;
   allowWrites: boolean;
   model?: string;
   /** wv is installed: writes come back as plans the person approves in the app. */
@@ -379,6 +381,7 @@ export async function startRun(
         account_id: opts.accountId ?? null,
         account_title: opts.accountTitle ?? null,
         demo: opts.demo,
+        presentation: !!opts.presentation,
         allow_writes: opts.allowWrites,
         model: opts.model ?? null,
         gated: !!opts.gated,
